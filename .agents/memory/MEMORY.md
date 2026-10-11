@@ -1,0 +1,1 @@
+- [ThermalShift scope](thermalshift-scope.md) — Keep results explicitly modeled; do not imply live data, real-world climate savings, blockchain transactions, or equipment control.

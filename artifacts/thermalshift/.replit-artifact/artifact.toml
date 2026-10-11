@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "ThermalShift"
+description = "A software-only cold-storage scheduling prototype for the IEEE ClimateChain Global Hackathon 2026. Explore transparent 24-hour cooling schedules, compare synthetic baseline and optimized energy use under temperature and total-energy-budget constraints, import validated hourly CSV data, and verify local SHA-256 report fingerprints."
+version = "1.0.0"
+id = "artifacts/thermalshift"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22534
+
+[services.development]
+run = "pnpm --filter @workspace/thermalshift run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/thermalshift", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/thermalshift/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22534"
+BASE_PATH = "/"

@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: thermalshift
+    description: ThermalShift cold-storage optimization prototype
 paths:
   /healthz:
     get:
@@ -24,6 +26,90 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /health:
+    get:
+      operationId: getThermalShiftHealth
+      tags: [thermalshift]
+      summary: Check the ThermalShift optimization service
+      responses:
+        "200":
+          description: ThermalShift service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ThermalShiftHealth"
+  /demo:
+    get:
+      operationId: getThermalShiftDemo
+      tags: [thermalshift]
+      summary: Retrieve the clearly labeled synthetic demo scenario
+      responses:
+        "200":
+          description: 24-hour demo scenario
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ThermalShiftScenario"
+  /optimize:
+    post:
+      operationId: optimizeThermalShift
+      tags: [thermalshift]
+      summary: Optimize a 24-hour cooling schedule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ThermalShiftOptimizeInput"
+      responses:
+        "200":
+          description: Optimization result or infeasible schedule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ThermalShiftReport"
+        "422":
+          description: Invalid scenario data
+  /verify-hash:
+    post:
+      operationId: verifyThermalShiftReportHash
+      tags: [thermalshift]
+      summary: Verify a report's local SHA-256 evidence hash
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ThermalShiftHashInput"
+      responses:
+        "200":
+          description: Hash comparison result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ThermalShiftHashResult"
+        "422":
+          description: Missing report or report hash
+  /import-csv:
+    post:
+      operationId: importThermalShiftCsv
+      tags: [thermalshift]
+      summary: Validate and import a 24-hour scenario CSV
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ThermalShiftCsvImportInput"
+      responses:
+        "200":
+          description: Validated scenario built from 24 hourly CSV records
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ThermalShiftCsvImportResult"
+        "422":
+          description: Invalid CSV schema, values, or hourly records
 components:
   schemas:
     HealthStatus:
@@ -33,4 +119,112 @@ components:
           type: string
       required:
         - status
+    ThermalShiftHealth:
+      type: object
+      properties:
+        status:
+          type: string
+        service:
+          type: string
+        version:
+          type: string
+      required: [status, service, version]
+    ThermalShiftScenario:
+      type: object
+      properties:
+        name:
+          type: string
+        baseline_kwh:
+          type: array
+          minItems: 24
+          maxItems: 24
+          items: { type: number, minimum: 0 }
+        tariff_per_kwh:
+          type: array
+          minItems: 24
+          maxItems: 24
+          items: { type: number, minimum: 0 }
+        grid_kgco2_per_kwh:
+          type: array
+          minItems: 24
+          maxItems: 24
+          items: { type: number, minimum: 0 }
+        ambient_heat_gain_c:
+          type: array
+          minItems: 24
+          maxItems: 24
+          items: { type: number, minimum: 0 }
+        initial_temp_c:
+          type: number
+        min_temp_c:
+          type: number
+        max_temp_c:
+          type: number
+        cooling_effect_c_per_kwh:
+          type: number
+        max_cooling_kwh_per_hour:
+          type: number
+        cost_weight:
+          type: number
+        carbon_weight:
+          type: number
+      required:
+        - name
+        - baseline_kwh
+        - tariff_per_kwh
+        - grid_kgco2_per_kwh
+        - ambient_heat_gain_c
+    ThermalShiftOptimizeInput:
+      type: object
+      properties:
+        scenario:
+          $ref: "#/components/schemas/ThermalShiftScenario"
+      required: [scenario]
+    ThermalShiftReport:
+      type: object
+      additionalProperties: true
+    ThermalShiftHashInput:
+      type: object
+      properties:
+        report:
+          type: object
+          additionalProperties: true
+        report_hash:
+          type: string
+          minLength: 1
+      required: [report, report_hash]
+    ThermalShiftHashResult:
+      type: object
+      properties:
+        valid:
+          type: boolean
+        calculated_hash:
+          type: string
+        provided_hash:
+          type: string
+        note:
+          type: string
+      required: [valid, calculated_hash, provided_hash, note]
+    ThermalShiftCsvImportInput:
+      type: object
+      properties:
+        csv_text:
+          type: string
+          minLength: 1
+          maxLength: 100000
+        scenario:
+          $ref: "#/components/schemas/ThermalShiftScenario"
+      required: [csv_text]
+    ThermalShiftCsvImportResult:
+      type: object
+      properties:
+        scenario:
+          $ref: "#/components/schemas/ThermalShiftScenario"
+        record_count:
+          type: integer
+        headers:
+          type: array
+          items:
+            type: string
+      required: [scenario, record_count, headers]
 
