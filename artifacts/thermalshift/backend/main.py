@@ -3,7 +3,7 @@ import io
 import math
 from datetime import datetime, timezone
 from hashlib import sha256
-from typing import List, Optional
+from typing import List, Literal, Optional
 import numpy as np
 import rfc8785
 from fastapi import FastAPI, HTTPException
@@ -18,6 +18,7 @@ HOURS = list(range(24))
 
 class Scenario(BaseModel):
     name: str = "Demo cold store"
+    input_provenance: Literal["synthetic_demo", "user_supplied_unverified"] = "user_supplied_unverified"
     baseline_kwh: List[float] = Field(min_length=24, max_length=24)
     tariff_per_kwh: List[float] = Field(min_length=24, max_length=24)
     grid_kgco2_per_kwh: List[float] = Field(min_length=24, max_length=24)
@@ -44,7 +45,14 @@ def demo_scenario():
     tariff = [5.1,4.8,4.6,4.4,4.5,4.9,6.2,7.4,8.1,8.4,7.8,7.1,6.7,6.5,6.9,7.6,8.8,9.4,9.2,8.1,7.2,6.5,5.8,5.3]
     carbon = [0.72,0.70,0.68,0.65,0.62,0.60,0.58,0.56,0.54,0.52,0.50,0.48,0.46,0.44,0.43,0.45,0.49,0.56,0.63,0.68,0.72,0.75,0.76,0.74]
     heat = [0.16,0.15,0.15,0.14,0.14,0.15,0.17,0.19,0.22,0.24,0.25,0.26,0.27,0.27,0.26,0.25,0.24,0.23,0.22,0.21,0.20,0.19,0.18,0.17]
-    return Scenario(name="Demo cold store · 24 hours", baseline_kwh=baseline, tariff_per_kwh=tariff, grid_kgco2_per_kwh=carbon, ambient_heat_gain_c=heat)
+    return Scenario(
+        name="Demo cold store · 24 hours",
+        input_provenance="synthetic_demo",
+        baseline_kwh=baseline,
+        tariff_per_kwh=tariff,
+        grid_kgco2_per_kwh=carbon,
+        ambient_heat_gain_c=heat,
+    )
 
 CSV_COLUMNS = {
     "baseline_kwh",
@@ -162,7 +170,12 @@ def demo():
 def import_csv(payload: CsvImportRequest):
     headers, series = parse_hourly_csv(payload.csv_text)
     base_scenario = payload.scenario or demo_scenario()
-    imported_scenario = base_scenario.model_copy(update=series)
+    imported_scenario = base_scenario.model_copy(
+        update={
+            **series,
+            "input_provenance": "user_supplied_unverified",
+        }
+    )
     return {
         "scenario": imported_scenario.model_dump(),
         "record_count": 24,
@@ -176,23 +189,58 @@ def optimize(req: OptimizeRequest):
     arrays = [s.baseline_kwh, s.tariff_per_kwh, s.grid_kgco2_per_kwh, s.ambient_heat_gain_c]
     if any(len(a) != n for a in arrays):
         raise HTTPException(422, "Each hourly series must contain exactly 24 values.")
+    scalar_inputs = [
+        s.initial_temp_c,
+        s.min_temp_c,
+        s.max_temp_c,
+        s.cooling_effect_c_per_kwh,
+        s.max_cooling_kwh_per_hour,
+        s.cost_weight,
+        s.carbon_weight,
+    ]
+    if not all(math.isfinite(value) for value in scalar_inputs):
+        raise HTTPException(422, "All scenario numeric inputs must be finite.")
     if s.min_temp_c >= s.max_temp_c or s.cooling_effect_c_per_kwh <= 0:
         raise HTTPException(422, "Temperature bounds or cooling coefficient are invalid.")
+    if not s.min_temp_c <= s.initial_temp_c <= s.max_temp_c:
+        raise HTTPException(422, "Initial temperature must be within the configured safe temperature limits.")
+    if s.max_cooling_kwh_per_hour < 0:
+        raise HTTPException(422, "Maximum hourly cooling electricity must be non-negative.")
+    if s.cost_weight < 0 or s.carbon_weight < 0:
+        raise HTTPException(422, "Cost and carbon weights must be non-negative.")
+    weight_sum = s.cost_weight + s.carbon_weight
+    if not math.isfinite(weight_sum) or weight_sum <= 0:
+        raise HTTPException(422, "At least one finite, positive objective weight is required.")
 
     # Variables x[0:24] = cooling electricity, T[24:48] = temperature at end of each hour.
     # Thermal model: T[h] = T[h-1] + heat_gain[h] - cooling_effect * x[h].
-    # This is a transparent planning approximation, not a validated refrigeration model.
+    # It has a carried temperature state, but no calibrated thermal time constant,
+    # COP curve, ambient-air state, compressor model, or product-temperature state.
     tariffs = np.asarray(s.tariff_per_kwh, dtype=float)
     carbon = np.asarray(s.grid_kgco2_per_kwh, dtype=float)
     base = np.asarray(s.baseline_kwh, dtype=float)
     heat = np.asarray(s.ambient_heat_gain_c, dtype=float)
+    if any(not np.all(np.isfinite(values)) for values in (base, tariffs, carbon, heat)):
+        raise HTTPException(422, "Energy, tariff, grid-intensity, and heat-gain inputs must be finite.")
     if np.any(base < 0) or np.any(tariffs < 0) or np.any(carbon < 0) or np.any(heat < 0):
-        raise HTTPException(422, "Energy, tariff, carbon, and heat-gain inputs must be non-negative.")
+        raise HTTPException(422, "Energy, tariff, grid-intensity, and heat-gain inputs must be non-negative.")
+    with np.errstate(over="ignore", invalid="ignore"):
+        total_energy = float(np.sum(base))
+        total_heat_gain = float(np.sum(heat))
+        numeric_scales = [
+            total_energy * float(np.max(tariffs)),
+            total_energy * float(np.max(carbon)),
+            total_energy * s.cooling_effect_c_per_kwh,
+            s.cooling_effect_c_per_kwh * s.max_cooling_kwh_per_hour,
+            total_heat_gain + abs(s.initial_temp_c),
+        ]
+    if not all(math.isfinite(value) for value in [total_energy, *numeric_scales]):
+        raise HTTPException(422, "Scenario values exceed the supported numeric range.")
 
     # Normalize the two objective terms so the user weights have a comparable influence.
     cost_term = tariffs / max(float(np.max(tariffs)), 1e-9)
     carbon_term = carbon / max(float(np.max(carbon)), 1e-9)
-    total_weight = max(s.cost_weight + s.carbon_weight, 1e-9)
+    total_weight = weight_sum
     objective_x = (s.cost_weight * cost_term + s.carbon_weight * carbon_term) / total_weight
     # Small penalty for excessive hourly peaks; this is a proxy, not a market settlement model.
     c = np.concatenate([objective_x, np.zeros(n), [4.0 / max(s.max_cooling_kwh_per_hour, 1e-9)]])
@@ -214,7 +262,7 @@ def optimize(req: OptimizeRequest):
     energy_row = np.zeros(2*n+1)
     energy_row[:n] = 1.0
     A_eq.append(energy_row)
-    b_eq.append(float(np.sum(base)))
+    b_eq.append(total_energy)
 
     A_ub = []
     b_ub = []
@@ -247,6 +295,11 @@ def optimize(req: OptimizeRequest):
         }
     baseline_metrics = metrics(base)
     optimized_metrics = metrics(optimized)
+    provenance_notice = (
+        "The built-in demo series are synthetic and are not facility measurements."
+        if s.input_provenance == "synthetic_demo"
+        else "Inputs are caller-supplied and have not been independently verified; no measured-data provenance is asserted."
+    )
     def reduction(old, new):
         return 0.0 if abs(old) < 1e-9 else (old-new)/old*100
     rows = []
@@ -255,8 +308,14 @@ def optimize(req: OptimizeRequest):
     result_payload = {
         "feasible": True,
         "scenario": s.name,
-        "model_notice": "Illustrative linear thermal model. Validate against facility-specific equipment, product, and food-safety requirements before operational use.",
-        "data_notice": "Demo inputs are synthetic unless explicitly uploaded or replaced by sourced data.",
+        "model_output_classification": "illustrative_model_estimate",
+        "input_provenance": s.input_provenance,
+        "model_notice": "Simplified hourly state model: no calibrated thermal-inertia parameter, COP/efficiency curve, ambient-air state, refrigeration-system capacity model, or product-temperature dynamics. Not an operational controller.",
+        "objective_notice": "The objective combines normalized tariff and grid-intensity terms with a peak penalty of 4 / max_cooling_kwh_per_hour; that fixed peak term may materially affect the schedule.",
+        "data_notice": provenance_notice,
+        "provenance_notice": "The input provenance label is supplied by the caller. This API does not authenticate records or verify that inputs were measured.",
+        "evaluation_notice": "Baseline and optimized profiles use the same supplied hourly tariff and grid intensity. Total kWh is fixed to baseline, so modeled emissions differences only reflect time-varying input intensity—not measured or guaranteed real-world savings.",
+        "energy_budget_kwh": total_energy,
         "baseline": baseline_metrics,
         "optimized": optimized_metrics,
         "change_pct": {
@@ -267,6 +326,7 @@ def optimize(req: OptimizeRequest):
         },
         "temperature_check": {
             "min_c": round(float(np.min(temps)), 3), "max_c": round(float(np.max(temps)), 3),
+            "baseline_min_c": round(float(np.min(base_temps)), 3), "baseline_max_c": round(float(np.max(base_temps)), 3),
             "within_configured_limits": bool(np.min(temps) >= s.min_temp_c - 1e-6 and np.max(temps) <= s.max_temp_c + 1e-6),
             "baseline_within_configured_limits": bool(np.min(base_temps) >= s.min_temp_c - 1e-6 and np.max(base_temps) <= s.max_temp_c + 1e-6),
         },
@@ -275,7 +335,12 @@ def optimize(req: OptimizeRequest):
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     canonical = rfc8785.dumps(result_payload)
-    result_payload["evidence"] = {"algorithm": "SHA-256", "report_hash": sha256(canonical).hexdigest(), "status": "Hash generated locally; not yet anchored on a blockchain."}
+    result_payload["evidence"] = {
+        "algorithm": "SHA-256",
+        "report_hash": sha256(canonical).hexdigest(),
+        "status": "Hash generated locally; no blockchain transaction has been submitted.",
+        "scope": "Detects changes to canonical report content when compared with a trusted reference hash; does not authenticate input provenance, validate measurements or model results, or prove blockchain anchoring.",
+    }
     return result_payload
 
 @app.post("/api/verify-hash")
@@ -286,4 +351,9 @@ def verify_hash(payload: dict):
         raise HTTPException(422, "Provide report and report_hash.")
     canonical = rfc8785.dumps(report)
     calculated = sha256(canonical).hexdigest()
-    return {"valid": calculated == report_hash, "calculated_hash": calculated, "provided_hash": report_hash, "note": "This checks integrity of the supplied report only; it does not authenticate source meter data."}
+    return {
+        "valid": calculated == report_hash,
+        "calculated_hash": calculated,
+        "provided_hash": report_hash,
+        "note": "This compares the canonical supplied report content with the supplied hash. It does not authenticate input provenance, verify measurements or model validity, or establish a blockchain record.",
+    }

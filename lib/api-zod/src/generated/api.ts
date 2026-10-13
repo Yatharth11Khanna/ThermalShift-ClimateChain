@@ -30,6 +30,7 @@ export const GetThermalShiftHealthResponse = zod.object({
 /**
  * @summary Retrieve the clearly labeled synthetic demo scenario
  */
+export const getThermalShiftDemoResponseInputProvenanceDefault = `user_supplied_unverified`;
 export const getThermalShiftDemoResponseBaselineKwhItemMin = 0;
 
 export const getThermalShiftDemoResponseBaselineKwhMin = 24;
@@ -54,6 +55,7 @@ export const getThermalShiftDemoResponseAmbientHeatGainCMax = 24;
 
 export const GetThermalShiftDemoResponse = zod.object({
   "name": zod.string(),
+  "input_provenance": zod.enum(['synthetic_demo', 'user_supplied_unverified']).default(getThermalShiftDemoResponseInputProvenanceDefault).describe('Caller-supplied label only; the API does not authenticate source records.'),
   "baseline_kwh": zod.array(zod.number().min(getThermalShiftDemoResponseBaselineKwhItemMin)).min(getThermalShiftDemoResponseBaselineKwhMin).max(getThermalShiftDemoResponseBaselineKwhMax),
   "tariff_per_kwh": zod.array(zod.number().min(getThermalShiftDemoResponseTariffPerKwhItemMin)).min(getThermalShiftDemoResponseTariffPerKwhMin).max(getThermalShiftDemoResponseTariffPerKwhMax),
   "grid_kgco2_per_kwh": zod.array(zod.number().min(getThermalShiftDemoResponseGridKgco2PerKwhItemMin)).min(getThermalShiftDemoResponseGridKgco2PerKwhMin).max(getThermalShiftDemoResponseGridKgco2PerKwhMax),
@@ -71,6 +73,7 @@ export const GetThermalShiftDemoResponse = zod.object({
 /**
  * @summary Optimize a 24-hour cooling schedule
  */
+export const optimizeThermalShiftBodyScenarioInputProvenanceDefault = `user_supplied_unverified`;
 export const optimizeThermalShiftBodyScenarioBaselineKwhItemMin = 0;
 
 export const optimizeThermalShiftBodyScenarioBaselineKwhMin = 24;
@@ -96,6 +99,7 @@ export const optimizeThermalShiftBodyScenarioAmbientHeatGainCMax = 24;
 export const OptimizeThermalShiftBody = zod.object({
   "scenario": zod.object({
   "name": zod.string(),
+  "input_provenance": zod.enum(['synthetic_demo', 'user_supplied_unverified']).default(optimizeThermalShiftBodyScenarioInputProvenanceDefault).describe('Caller-supplied label only; the API does not authenticate source records.'),
   "baseline_kwh": zod.array(zod.number().min(optimizeThermalShiftBodyScenarioBaselineKwhItemMin)).min(optimizeThermalShiftBodyScenarioBaselineKwhMin).max(optimizeThermalShiftBodyScenarioBaselineKwhMax),
   "tariff_per_kwh": zod.array(zod.number().min(optimizeThermalShiftBodyScenarioTariffPerKwhItemMin)).min(optimizeThermalShiftBodyScenarioTariffPerKwhMin).max(optimizeThermalShiftBodyScenarioTariffPerKwhMax),
   "grid_kgco2_per_kwh": zod.array(zod.number().min(optimizeThermalShiftBodyScenarioGridKgco2PerKwhItemMin)).min(optimizeThermalShiftBodyScenarioGridKgco2PerKwhMin).max(optimizeThermalShiftBodyScenarioGridKgco2PerKwhMax),
@@ -110,7 +114,30 @@ export const OptimizeThermalShiftBody = zod.object({
 })
 })
 
-export const OptimizeThermalShiftResponse = zod.record(zod.string(), zod.unknown())
+export const optimizeThermalShiftResponseEvidenceReportHashRegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const OptimizeThermalShiftResponse = zod.object({
+  "feasible": zod.boolean().optional(),
+  "model_output_classification": zod.enum(['illustrative_model_estimate']).optional(),
+  "input_provenance": zod.enum(['synthetic_demo', 'user_supplied_unverified']).optional(),
+  "model_notice": zod.string().optional(),
+  "objective_notice": zod.string().optional(),
+  "data_notice": zod.string().optional(),
+  "provenance_notice": zod.string().optional(),
+  "evaluation_notice": zod.string().optional(),
+  "energy_budget_kwh": zod.number().optional(),
+  "baseline": zod.record(zod.string(), zod.unknown()).optional(),
+  "optimized": zod.record(zod.string(), zod.unknown()).optional(),
+  "change_pct": zod.record(zod.string(), zod.unknown()).optional(),
+  "temperature_check": zod.record(zod.string(), zod.unknown()).optional(),
+  "evidence": zod.object({
+  "algorithm": zod.enum(['SHA-256']),
+  "report_hash": zod.string().regex(optimizeThermalShiftResponseEvidenceReportHashRegExp),
+  "status": zod.string(),
+  "scope": zod.string()
+}).optional()
+})
 
 
 /**
@@ -137,6 +164,7 @@ export const VerifyThermalShiftReportHashResponse = zod.object({
  */
 export const importThermalShiftCsvBodyCsvTextMax = 100000;
 
+export const importThermalShiftCsvBodyScenarioInputProvenanceDefault = `user_supplied_unverified`;
 export const importThermalShiftCsvBodyScenarioBaselineKwhItemMin = 0;
 
 export const importThermalShiftCsvBodyScenarioBaselineKwhMin = 24;
@@ -163,6 +191,7 @@ export const ImportThermalShiftCsvBody = zod.object({
   "csv_text": zod.string().min(1).max(importThermalShiftCsvBodyCsvTextMax),
   "scenario": zod.object({
   "name": zod.string(),
+  "input_provenance": zod.enum(['synthetic_demo', 'user_supplied_unverified']).default(importThermalShiftCsvBodyScenarioInputProvenanceDefault).describe('Caller-supplied label only; the API does not authenticate source records.'),
   "baseline_kwh": zod.array(zod.number().min(importThermalShiftCsvBodyScenarioBaselineKwhItemMin)).min(importThermalShiftCsvBodyScenarioBaselineKwhMin).max(importThermalShiftCsvBodyScenarioBaselineKwhMax),
   "tariff_per_kwh": zod.array(zod.number().min(importThermalShiftCsvBodyScenarioTariffPerKwhItemMin)).min(importThermalShiftCsvBodyScenarioTariffPerKwhMin).max(importThermalShiftCsvBodyScenarioTariffPerKwhMax),
   "grid_kgco2_per_kwh": zod.array(zod.number().min(importThermalShiftCsvBodyScenarioGridKgco2PerKwhItemMin)).min(importThermalShiftCsvBodyScenarioGridKgco2PerKwhMin).max(importThermalShiftCsvBodyScenarioGridKgco2PerKwhMax),
@@ -177,6 +206,7 @@ export const ImportThermalShiftCsvBody = zod.object({
 }).optional()
 })
 
+export const importThermalShiftCsvResponseScenarioInputProvenanceDefault = `user_supplied_unverified`;
 export const importThermalShiftCsvResponseScenarioBaselineKwhItemMin = 0;
 
 export const importThermalShiftCsvResponseScenarioBaselineKwhMin = 24;
@@ -202,6 +232,7 @@ export const importThermalShiftCsvResponseScenarioAmbientHeatGainCMax = 24;
 export const ImportThermalShiftCsvResponse = zod.object({
   "scenario": zod.object({
   "name": zod.string(),
+  "input_provenance": zod.enum(['synthetic_demo', 'user_supplied_unverified']).default(importThermalShiftCsvResponseScenarioInputProvenanceDefault).describe('Caller-supplied label only; the API does not authenticate source records.'),
   "baseline_kwh": zod.array(zod.number().min(importThermalShiftCsvResponseScenarioBaselineKwhItemMin)).min(importThermalShiftCsvResponseScenarioBaselineKwhMin).max(importThermalShiftCsvResponseScenarioBaselineKwhMax),
   "tariff_per_kwh": zod.array(zod.number().min(importThermalShiftCsvResponseScenarioTariffPerKwhItemMin)).min(importThermalShiftCsvResponseScenarioTariffPerKwhMin).max(importThermalShiftCsvResponseScenarioTariffPerKwhMax),
   "grid_kgco2_per_kwh": zod.array(zod.number().min(importThermalShiftCsvResponseScenarioGridKgco2PerKwhItemMin)).min(importThermalShiftCsvResponseScenarioGridKgco2PerKwhMin).max(importThermalShiftCsvResponseScenarioGridKgco2PerKwhMax),

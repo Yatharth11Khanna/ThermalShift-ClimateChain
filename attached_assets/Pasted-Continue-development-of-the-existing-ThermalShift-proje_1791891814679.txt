@@ -1,0 +1,18 @@
+Continue development of the existing ThermalShift project. Do not replace the architecture or rebuild the dashboard from scratch.
+
+Our first milestone is complete: FastAPI/SciPy backend, React dashboard, CSV validation, report hashing, and 14 passing tests.
+
+**Milestone 3 — Scientific validation and climate-impact credibility**
+
+1. Inspect the actual optimization equations, assumptions, API contract, tests, and README before modifying anything.
+2. Identify which physical processes the model represents and which it omits. In particular, verify whether it models thermal inertia, cooling efficiency/COP, refrigeration capacity, ambient temperature, and product-temperature dynamics. Do not claim to model processes that are absent.
+3. Preserve existing functionality and create tests for energy-budget feasibility, temperature safety, infeasible inputs, baseline comparison, and numerical edge cases.
+4. Evaluate baseline and optimized schedules using consistent demand, tariff, and time-varying grid-emissions assumptions. Report cost and emissions separately. Never infer emissions reductions from shifted electricity consumption alone.
+5. Add at least three documented benchmark scenarios: a case with useful flexibility, a case with little or no benefit, and a case where the requested constraints are infeasible. Explain why each result occurs.
+6. Clearly distinguish measured inputs, user-supplied inputs, synthetic data, model estimates, and verified records. Do not fabricate public-dataset provenance or real-world savings.
+7. Research and identify a suitable publicly accessible cold-storage or refrigeration dataset. Document its source, license, variables, limitations, and how it could be incorporated. Do not silently substitute synthetic data for public data.
+8. Review the existing evidence-hash implementation and document exactly what it proves and does not prove.
+
+Run all existing and new tests, backend checks, frontend typechecks, and the production build. Report the actual results and remaining limitations.
+
+Do not integrate a blockchain testnet yet. First deliver a scientifically defensible model and evaluation report so we can determine which optimization results are credible enough to anchor on-chain.

@@ -134,6 +134,11 @@ components:
       properties:
         name:
           type: string
+        input_provenance:
+          type: string
+          enum: [synthetic_demo, user_supplied_unverified]
+          default: user_supplied_unverified
+          description: Caller-supplied label only; the API does not authenticate source records.
         baseline_kwh:
           type: array
           minItems: 24
@@ -182,7 +187,56 @@ components:
       required: [scenario]
     ThermalShiftReport:
       type: object
+      properties:
+        feasible:
+          type: boolean
+        model_output_classification:
+          type: string
+          enum: [illustrative_model_estimate]
+        input_provenance:
+          type: string
+          enum: [synthetic_demo, user_supplied_unverified]
+        model_notice:
+          type: string
+        objective_notice:
+          type: string
+        data_notice:
+          type: string
+        provenance_notice:
+          type: string
+        evaluation_notice:
+          type: string
+        energy_budget_kwh:
+          type: number
+        baseline:
+          type: object
+          additionalProperties: true
+        optimized:
+          type: object
+          additionalProperties: true
+        change_pct:
+          type: object
+          additionalProperties: true
+        temperature_check:
+          type: object
+          additionalProperties: true
+        evidence:
+          $ref: "#/components/schemas/ThermalShiftEvidence"
       additionalProperties: true
+    ThermalShiftEvidence:
+      type: object
+      properties:
+        algorithm:
+          type: string
+          enum: [SHA-256]
+        report_hash:
+          type: string
+          pattern: "^[a-f0-9]{64}$"
+        status:
+          type: string
+        scope:
+          type: string
+      required: [algorithm, report_hash, status, scope]
     ThermalShiftHashInput:
       type: object
       properties:

@@ -5,5 +5,28 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ThermalShiftEvidence } from './thermalShiftEvidence';
+import type { ThermalShiftReportBaseline } from './thermalShiftReportBaseline';
+import type { ThermalShiftReportChangePct } from './thermalShiftReportChangePct';
+import type { ThermalShiftReportInputProvenance } from './thermalShiftReportInputProvenance';
+import type { ThermalShiftReportModelOutputClassification } from './thermalShiftReportModelOutputClassification';
+import type { ThermalShiftReportOptimized } from './thermalShiftReportOptimized';
+import type { ThermalShiftReportTemperatureCheck } from './thermalShiftReportTemperatureCheck';
 
-export interface ThermalShiftReport { [key: string]: unknown }
+export interface ThermalShiftReport {
+  feasible?: boolean;
+  model_output_classification?: ThermalShiftReportModelOutputClassification;
+  input_provenance?: ThermalShiftReportInputProvenance;
+  model_notice?: string;
+  objective_notice?: string;
+  data_notice?: string;
+  provenance_notice?: string;
+  evaluation_notice?: string;
+  energy_budget_kwh?: number;
+  baseline?: ThermalShiftReportBaseline;
+  optimized?: ThermalShiftReportOptimized;
+  change_pct?: ThermalShiftReportChangePct;
+  temperature_check?: ThermalShiftReportTemperatureCheck;
+  evidence?: ThermalShiftEvidence;
+  [key: string]: unknown;
+ }

@@ -15,8 +15,21 @@ export interface ThermalShiftHealth {
   version: string;
 }
 
+/**
+ * Caller-supplied label only; the API does not authenticate source records.
+ */
+export type ThermalShiftScenarioInputProvenance = typeof ThermalShiftScenarioInputProvenance[keyof typeof ThermalShiftScenarioInputProvenance];
+
+
+export const ThermalShiftScenarioInputProvenance = {
+  synthetic_demo: 'synthetic_demo',
+  user_supplied_unverified: 'user_supplied_unverified',
+} as const;
+
 export interface ThermalShiftScenario {
   name: string;
+  /** Caller-supplied label only; the API does not authenticate source records. */
+  input_provenance?: ThermalShiftScenarioInputProvenance;
   /**
      * @minItems 24
      * @maxItems 24
@@ -54,7 +67,61 @@ export interface ThermalShiftOptimizeInput {
   scenario: ThermalShiftScenario;
 }
 
-export interface ThermalShiftReport { [key: string]: unknown }
+export type ThermalShiftReportModelOutputClassification = typeof ThermalShiftReportModelOutputClassification[keyof typeof ThermalShiftReportModelOutputClassification];
+
+
+export const ThermalShiftReportModelOutputClassification = {
+  illustrative_model_estimate: 'illustrative_model_estimate',
+} as const;
+
+export type ThermalShiftReportInputProvenance = typeof ThermalShiftReportInputProvenance[keyof typeof ThermalShiftReportInputProvenance];
+
+
+export const ThermalShiftReportInputProvenance = {
+  synthetic_demo: 'synthetic_demo',
+  user_supplied_unverified: 'user_supplied_unverified',
+} as const;
+
+export type ThermalShiftReportBaseline = { [key: string]: unknown };
+
+export type ThermalShiftReportOptimized = { [key: string]: unknown };
+
+export type ThermalShiftReportChangePct = { [key: string]: unknown };
+
+export type ThermalShiftReportTemperatureCheck = { [key: string]: unknown };
+
+export type ThermalShiftEvidenceAlgorithm = typeof ThermalShiftEvidenceAlgorithm[keyof typeof ThermalShiftEvidenceAlgorithm];
+
+
+export const ThermalShiftEvidenceAlgorithm = {
+  'SHA-256': 'SHA-256',
+} as const;
+
+export interface ThermalShiftEvidence {
+  algorithm: ThermalShiftEvidenceAlgorithm;
+  /** @pattern ^[a-f0-9]{64}$ */
+  report_hash: string;
+  status: string;
+  scope: string;
+}
+
+export interface ThermalShiftReport {
+  feasible?: boolean;
+  model_output_classification?: ThermalShiftReportModelOutputClassification;
+  input_provenance?: ThermalShiftReportInputProvenance;
+  model_notice?: string;
+  objective_notice?: string;
+  data_notice?: string;
+  provenance_notice?: string;
+  evaluation_notice?: string;
+  energy_budget_kwh?: number;
+  baseline?: ThermalShiftReportBaseline;
+  optimized?: ThermalShiftReportOptimized;
+  change_pct?: ThermalShiftReportChangePct;
+  temperature_check?: ThermalShiftReportTemperatureCheck;
+  evidence?: ThermalShiftEvidence;
+  [key: string]: unknown;
+ }
 
 export type ThermalShiftHashInputReport = { [key: string]: unknown };
 
