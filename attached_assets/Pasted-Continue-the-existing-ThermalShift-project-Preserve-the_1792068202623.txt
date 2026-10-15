@@ -1,0 +1,18 @@
+Continue the existing ThermalShift project. Preserve the current dashboard, FastAPI/SciPy backend, timestamp and provenance validation, synthetic benchmarks, report hashing, and all 29 passing backend tests.
+
+We are entering the final competition-focused phase for IEEE ClimateChain 2026. Do not rebuild the app or add unrelated features.
+
+**Milestone 4 — Real blockchain evidence anchoring**
+
+1. Inspect the existing report schema, canonical hashing, evidence verification, environment configuration, and API architecture.
+2. Select a suitable public blockchain testnet and document why it fits this project. Prefer an inexpensive, publicly verifiable transaction workflow with a reliable explorer.
+3. Implement a server-side integration that anchors the hash of the canonical ThermalShift report. Keep credentials in server-side environment secrets; never expose private keys in the frontend or repository.
+4. Store the network, transaction hash, contract or destination address as applicable, report hash, and confirmation status. Provide an independent verification flow that retrieves the on-chain record and compares it with the current report hash.
+5. Never claim that blockchain proves the source data are authentic, the model is physically valid, or the reported savings occurred in the real world. Label the anchored record as a modelled research result when synthetic or unverified data were used.
+6. Make the integration resilient to failed submissions, pending transactions, network errors, duplicate requests, and altered reports. Do not report a transaction as confirmed before confirmation is established.
+7. Add automated tests for canonical hashing, mismatch detection, network failures, and status handling. Keep ordinary tests independent of live network access.
+8. Do not fabricate transaction IDs or simulate a successful public-chain submission. If testnet credentials or funding are missing, implement the integration and report that external dependency explicitly.
+9. Run all backend tests, workspace typechecks, and the ThermalShift production build. Verify the frontend and API proxy still work.
+10. Update the README with setup instructions, the exact trust guarantees, and remaining limitations.
+
+When finished, report the selected network, files changed, tests run, whether a real transaction was confirmed, and the remaining blockers for the competition demo.
