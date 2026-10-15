@@ -1,9 +1,11 @@
 import csv
 import io
 import math
-from datetime import datetime, timezone
+import re
+from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 from typing import List, Literal, Optional
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import numpy as np
 import rfc8785
 from fastapi import FastAPI, HTTPException
@@ -16,9 +18,24 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, 
 
 HOURS = list(range(24))
 
+class HourlySeriesMetadata(BaseModel):
+    timestamps: List[str] = Field(min_length=24, max_length=24)
+    timezone: str = Field(min_length=1, max_length=64)
+    unit: str = Field(min_length=1, max_length=32)
+    source: str = Field(min_length=1, max_length=500)
+
+class CsvImportMetadata(BaseModel):
+    timezone: str = Field(min_length=1, max_length=64)
+    tariff_unit: str = Field(min_length=1, max_length=32)
+    tariff_source: str = Field(min_length=1, max_length=500)
+    grid_emissions_unit: str = Field(min_length=1, max_length=32)
+    grid_emissions_source: str = Field(min_length=1, max_length=500)
+
 class Scenario(BaseModel):
     name: str = "Demo cold store"
     input_provenance: Literal["synthetic_demo", "user_supplied_unverified"] = "user_supplied_unverified"
+    tariff_metadata: HourlySeriesMetadata
+    grid_emissions_metadata: HourlySeriesMetadata
     baseline_kwh: List[float] = Field(min_length=24, max_length=24)
     tariff_per_kwh: List[float] = Field(min_length=24, max_length=24)
     grid_kgco2_per_kwh: List[float] = Field(min_length=24, max_length=24)
@@ -36,7 +53,28 @@ class OptimizeRequest(BaseModel):
 
 class CsvImportRequest(BaseModel):
     csv_text: str = Field(min_length=1, max_length=100000)
+    metadata: CsvImportMetadata
     scenario: Optional[Scenario] = None
+
+
+def synthetic_series_metadata(source: str):
+    """Return explicit, fixed demonstration intervals and units for synthetic inputs."""
+    start = datetime(2025, 1, 1, tzinfo=timezone.utc)
+    timestamps = [(start + timedelta(hours=hour)).isoformat() for hour in HOURS]
+    return {
+        "tariff_metadata": HourlySeriesMetadata(
+            timestamps=timestamps,
+            timezone="UTC",
+            unit="INR/kWh",
+            source=f"{source}: synthetic tariff series",
+        ),
+        "grid_emissions_metadata": HourlySeriesMetadata(
+            timestamps=timestamps,
+            timezone="UTC",
+            unit="kgCO2/kWh",
+            source=f"{source}: synthetic grid-emissions series",
+        ),
+    }
 
 
 def demo_scenario():
@@ -45,9 +83,11 @@ def demo_scenario():
     tariff = [5.1,4.8,4.6,4.4,4.5,4.9,6.2,7.4,8.1,8.4,7.8,7.1,6.7,6.5,6.9,7.6,8.8,9.4,9.2,8.1,7.2,6.5,5.8,5.3]
     carbon = [0.72,0.70,0.68,0.65,0.62,0.60,0.58,0.56,0.54,0.52,0.50,0.48,0.46,0.44,0.43,0.45,0.49,0.56,0.63,0.68,0.72,0.75,0.76,0.74]
     heat = [0.16,0.15,0.15,0.14,0.14,0.15,0.17,0.19,0.22,0.24,0.25,0.26,0.27,0.27,0.26,0.25,0.24,0.23,0.22,0.21,0.20,0.19,0.18,0.17]
+    metadata = synthetic_series_metadata("ThermalShift built-in demo")
     return Scenario(
         name="Demo cold store · 24 hours",
         input_provenance="synthetic_demo",
+        **metadata,
         baseline_kwh=baseline,
         tariff_per_kwh=tariff,
         grid_kgco2_per_kwh=carbon,
@@ -60,7 +100,91 @@ CSV_COLUMNS = {
     "grid_kgco2_per_kwh",
     "ambient_heat_gain_c",
 }
-CSV_REQUIRED_COLUMNS = {"hour", *CSV_COLUMNS}
+CSV_TIMESTAMP_COLUMNS = {"tariff_timestamp", "grid_emissions_timestamp"}
+CSV_REQUIRED_COLUMNS = {"hour", *CSV_COLUMNS, *CSV_TIMESTAMP_COLUMNS}
+
+
+def _parse_aware_timestamp(value: str, timezone_name: str, series_name: str, index: int):
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        raise HTTPException(
+            422,
+            f"{series_name} timestamp at interval {index} must be ISO 8601 with an explicit UTC offset.",
+        )
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise HTTPException(
+            422,
+            f"{series_name} timestamp at interval {index} must include an explicit UTC offset.",
+        )
+    zone = ZoneInfo(timezone_name)
+    localized = parsed.astimezone(zone)
+    if (
+        localized.replace(tzinfo=None) != parsed.replace(tzinfo=None)
+        or localized.utcoffset() != parsed.utcoffset()
+    ):
+        raise HTTPException(
+            422,
+            f"{series_name} timestamp at interval {index} does not match the declared IANA time zone.",
+        )
+    return parsed.astimezone(timezone.utc)
+
+
+def validate_time_series_metadata(
+    tariff_metadata: HourlySeriesMetadata,
+    grid_emissions_metadata: HourlySeriesMetadata,
+):
+    """Validate source metadata, explicit time zones, and exact hourly alignment."""
+    if tariff_metadata.timezone != grid_emissions_metadata.timezone:
+        raise HTTPException(
+            422,
+            "Tariff and grid-emissions series must declare the same IANA time zone.",
+        )
+    try:
+        ZoneInfo(tariff_metadata.timezone)
+    except (ZoneInfoNotFoundError, ValueError):
+        raise HTTPException(422, "Time zone must be a valid IANA time-zone name.")
+
+    if not re.fullmatch(r"[A-Z]{3}/kWh", tariff_metadata.unit):
+        raise HTTPException(
+            422,
+            "Tariff unit must be an ISO currency code per kWh, for example INR/kWh or EUR/kWh.",
+        )
+    if grid_emissions_metadata.unit != "kgCO2/kWh":
+        raise HTTPException(
+            422,
+            "Grid-emissions unit must be kgCO2/kWh; convert source values explicitly before import.",
+        )
+    if not tariff_metadata.source.strip() or not grid_emissions_metadata.source.strip():
+        raise HTTPException(422, "Tariff and grid-emissions source descriptions are required.")
+
+    parsed_series = []
+    for metadata, name in (
+        (tariff_metadata, "Tariff"),
+        (grid_emissions_metadata, "Grid-emissions"),
+    ):
+        if len(metadata.timestamps) != 24:
+            raise HTTPException(422, f"{name} series must contain exactly 24 timestamps.")
+        parsed = [
+            _parse_aware_timestamp(value, metadata.timezone, name, index)
+            for index, value in enumerate(metadata.timestamps)
+        ]
+        if any(
+            current - previous != timedelta(hours=1)
+            for previous, current in zip(parsed, parsed[1:])
+        ):
+            raise HTTPException(
+                422,
+                f"{name} timestamps must be 24 consecutive one-hour interval starts.",
+            )
+        parsed_series.append(parsed)
+
+    if parsed_series[0] != parsed_series[1]:
+        raise HTTPException(
+            422,
+            "Tariff and grid-emissions timestamps must refer to the same 24 intervals in the same order.",
+        )
+    return parsed_series[0]
 
 def parse_hourly_csv(csv_text: str):
     reader = csv.reader(io.StringIO(csv_text, newline=""), strict=True)
@@ -101,6 +225,7 @@ def parse_hourly_csv(csv_text: str):
 
     header_index = {header: index for index, header in enumerate(headers)}
     values_by_hour = {}
+    timestamps_by_hour = {}
     for line_number, row in rows:
         if len(row) != len(headers):
             raise HTTPException(
@@ -121,8 +246,20 @@ def parse_hourly_csv(csv_text: str):
         if hour in values_by_hour:
             raise HTTPException(422, f"CSV contains duplicate hour {hour}.")
 
+        timestamps = {
+            column: row[header_index[column]].strip()
+            for column in CSV_TIMESTAMP_COLUMNS
+        }
+        for column, timestamp in timestamps.items():
+            if not timestamp:
+                raise HTTPException(
+                    422,
+                    f"CSV {column} at hour {hour} is required and must be an ISO 8601 timestamp with an offset.",
+                )
+        timestamps_by_hour[hour] = timestamps
+
         parsed = {}
-        for column in CSV_COLUMNS:
+        for column in sorted(CSV_COLUMNS):
             raw_value = row[header_index[column]].strip()
             try:
                 value = float(raw_value)
@@ -154,9 +291,13 @@ def parse_hourly_csv(csv_text: str):
 
     series = {
         column: [values_by_hour[hour][column] for hour in range(24)]
-        for column in CSV_COLUMNS
+        for column in sorted(CSV_COLUMNS)
     }
-    return headers, series
+    timestamps = {
+        column: [timestamps_by_hour[hour][column] for hour in range(24)]
+        for column in sorted(CSV_TIMESTAMP_COLUMNS)
+    }
+    return headers, series, timestamps
 
 @app.get("/api/health")
 def health():
@@ -168,14 +309,31 @@ def demo():
 
 @app.post("/api/import-csv")
 def import_csv(payload: CsvImportRequest):
-    headers, series = parse_hourly_csv(payload.csv_text)
+    headers, series, timestamps = parse_hourly_csv(payload.csv_text)
     base_scenario = payload.scenario or demo_scenario()
-    imported_scenario = base_scenario.model_copy(
-        update={
+    tariff_metadata = HourlySeriesMetadata(
+        timestamps=timestamps["tariff_timestamp"],
+        timezone=payload.metadata.timezone,
+        unit=payload.metadata.tariff_unit,
+        source=payload.metadata.tariff_source,
+    )
+    grid_emissions_metadata = HourlySeriesMetadata(
+        timestamps=timestamps["grid_emissions_timestamp"],
+        timezone=payload.metadata.timezone,
+        unit=payload.metadata.grid_emissions_unit,
+        source=payload.metadata.grid_emissions_source,
+    )
+    validate_time_series_metadata(tariff_metadata, grid_emissions_metadata)
+    imported_values = base_scenario.model_dump()
+    imported_values.update(
+        {
             **series,
+            "tariff_metadata": tariff_metadata.model_dump(),
+            "grid_emissions_metadata": grid_emissions_metadata.model_dump(),
             "input_provenance": "user_supplied_unverified",
         }
     )
+    imported_scenario = Scenario.model_validate(imported_values)
     return {
         "scenario": imported_scenario.model_dump(),
         "record_count": 24,
@@ -185,6 +343,7 @@ def import_csv(payload: CsvImportRequest):
 @app.post("/api/optimize")
 def optimize(req: OptimizeRequest):
     s = req.scenario
+    validate_time_series_metadata(s.tariff_metadata, s.grid_emissions_metadata)
     n = 24
     arrays = [s.baseline_kwh, s.tariff_per_kwh, s.grid_kgco2_per_kwh, s.ambient_heat_gain_c]
     if any(len(a) != n for a in arrays):
@@ -304,17 +463,39 @@ def optimize(req: OptimizeRequest):
         return 0.0 if abs(old) < 1e-9 else (old-new)/old*100
     rows = []
     for h in range(n):
-        rows.append({"hour": h, "baseline_kwh": round(float(base[h]), 4), "optimized_kwh": round(float(optimized[h]), 4), "tariff": float(tariffs[h]), "grid_kgco2_per_kwh": float(carbon[h]), "baseline_temp_c": round(float(base_temps[h]), 3), "optimized_temp_c": round(float(temps[h]), 3)})
+        rows.append({
+            "hour": h,
+            "timestamp": s.tariff_metadata.timestamps[h],
+            "tariff_timestamp": s.tariff_metadata.timestamps[h],
+            "grid_emissions_timestamp": s.grid_emissions_metadata.timestamps[h],
+            "baseline_kwh": round(float(base[h]), 4),
+            "optimized_kwh": round(float(optimized[h]), 4),
+            "tariff": float(tariffs[h]),
+            "grid_kgco2_per_kwh": float(carbon[h]),
+            "baseline_temp_c": round(float(base_temps[h]), 3),
+            "optimized_temp_c": round(float(temps[h]), 3),
+        })
     result_payload = {
         "feasible": True,
         "scenario": s.name,
         "model_output_classification": "illustrative_model_estimate",
         "input_provenance": s.input_provenance,
+        "time_series_metadata": {
+            "timezone": s.tariff_metadata.timezone,
+            "tariff_unit": s.tariff_metadata.unit,
+            "tariff_source": s.tariff_metadata.source,
+            "grid_emissions_unit": s.grid_emissions_metadata.unit,
+            "grid_emissions_source": s.grid_emissions_metadata.source,
+            "interval_count": n,
+            "first_interval_start": s.tariff_metadata.timestamps[0],
+            "last_interval_start": s.tariff_metadata.timestamps[-1],
+            "source_metadata_notice": "Source descriptions are supplied by the caller and have not been independently authenticated.",
+        },
         "model_notice": "Simplified hourly state model: no calibrated thermal-inertia parameter, COP/efficiency curve, ambient-air state, refrigeration-system capacity model, or product-temperature dynamics. Not an operational controller.",
         "objective_notice": "The objective combines normalized tariff and grid-intensity terms with a peak penalty of 4 / max_cooling_kwh_per_hour; that fixed peak term may materially affect the schedule.",
         "data_notice": provenance_notice,
         "provenance_notice": "The input provenance label is supplied by the caller. This API does not authenticate records or verify that inputs were measured.",
-        "evaluation_notice": "Baseline and optimized profiles use the same supplied hourly tariff and grid intensity. Total kWh is fixed to baseline, so modeled emissions differences only reflect time-varying input intensity—not measured or guaranteed real-world savings.",
+        "evaluation_notice": "Baseline and optimized profiles use the same supplied tariff and grid-emissions series after strict matching of all 24 timestamped one-hour intervals. No intervals are silently aligned or converted. Total kWh is fixed to baseline, so modeled emissions differences only reflect time-varying input intensity—not measured or guaranteed real-world savings.",
         "energy_budget_kwh": total_energy,
         "baseline": baseline_metrics,
         "optimized": optimized_metrics,

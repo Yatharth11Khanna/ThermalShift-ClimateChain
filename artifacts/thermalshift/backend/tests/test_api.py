@@ -1,6 +1,7 @@
 import csv
 import hashlib
 import io
+from datetime import datetime, timedelta, timezone
 
 import rfc8785
 from fastapi.testclient import TestClient
@@ -13,11 +14,33 @@ from benchmarks import benchmark_scenarios
 client = TestClient(main.app)
 CSV_HEADERS = [
     "hour",
+    "tariff_timestamp",
     "baseline_kwh",
     "tariff_per_kwh",
+    "grid_emissions_timestamp",
     "grid_kgco2_per_kwh",
     "ambient_heat_gain_c",
 ]
+CSV_METADATA = {
+    "timezone": "UTC",
+    "tariff_unit": "INR/kWh",
+    "tariff_source": "Synthetic test fixture tariff",
+    "grid_emissions_unit": "kgCO2/kWh",
+    "grid_emissions_source": "Synthetic test fixture grid intensity",
+}
+
+
+def timestamp_for_hour(hour):
+    return (
+        datetime(2025, 1, 1, tzinfo=timezone.utc) + timedelta(hours=hour)
+    ).isoformat()
+
+
+def csv_payload(csv_text, scenario=None, metadata=None):
+    payload = {"csv_text": csv_text, "metadata": metadata or CSV_METADATA}
+    if scenario is not None:
+        payload["scenario"] = scenario
+    return payload
 
 
 def make_csv(hours=range(24), headers=None, overrides=None, short_row_hour=None):
@@ -29,8 +52,10 @@ def make_csv(hours=range(24), headers=None, overrides=None, short_row_hour=None)
     for hour in hours:
         row = {
             "hour": hour,
+            "tariff_timestamp": timestamp_for_hour(hour),
             "baseline_kwh": round(0.7 + 0.01 * hour, 3),
             "tariff_per_kwh": round(4 + (hour % 5) * 0.25, 2),
+            "grid_emissions_timestamp": timestamp_for_hour(hour),
             "grid_kgco2_per_kwh": round(0.4 + (hour % 4) * 0.05, 2),
             "ambient_heat_gain_c": 0.1,
         }
@@ -67,12 +92,15 @@ def make_csv(hours=range(24), headers=None, overrides=None, short_row_hour=None)
         ),
         (
             make_csv(short_row_hour=4),
-            "has 4 fields; expected 5",
+            "has 6 fields; expected 7",
         ),
     ],
 )
 def test_malformed_csv_is_rejected(csv_text, expected_detail):
-    response = client.post("/api/import-csv", json={"csv_text": csv_text})
+    response = client.post(
+        "/api/import-csv",
+        json=csv_payload(csv_text),
+    )
 
     assert response.status_code == 422
     detail = response.json()["detail"]
@@ -90,10 +118,10 @@ def test_csv_import_sorts_hours_and_preserves_scenario_constraints():
     base_scenario["max_temp_c"] = 4.5
     response = client.post(
         "/api/import-csv",
-        json={
-            "csv_text": make_csv(hours=reversed(range(24))),
-            "scenario": base_scenario,
-        },
+        json=csv_payload(
+            make_csv(hours=reversed(range(24))),
+            scenario=base_scenario,
+        ),
     )
 
     assert response.status_code == 200
@@ -105,6 +133,91 @@ def test_csv_import_sorts_hours_and_preserves_scenario_constraints():
     assert body["scenario"]["min_temp_c"] == 1.5
     assert body["scenario"]["max_temp_c"] == 4.5
     assert body["scenario"]["input_provenance"] == "user_supplied_unverified"
+    assert body["scenario"]["tariff_metadata"]["timestamps"] == [
+        timestamp_for_hour(hour) for hour in range(24)
+    ]
+    assert body["scenario"]["tariff_metadata"]["source"] == CSV_METADATA["tariff_source"]
+    assert body["scenario"]["grid_emissions_metadata"]["unit"] == "kgCO2/kWh"
+
+
+def test_csv_import_rejects_mismatched_series_timestamps_and_missing_metadata():
+    mismatch = client.post(
+        "/api/import-csv",
+        json=csv_payload(
+            make_csv(
+                overrides={
+                    hour: {"grid_emissions_timestamp": timestamp_for_hour(hour + 1)}
+                    for hour in range(24)
+                }
+            )
+        ),
+    )
+    assert mismatch.status_code == 422
+    assert "same 24 intervals" in mismatch.json()["detail"]
+
+    missing_metadata = client.post(
+        "/api/import-csv",
+        json={"csv_text": make_csv()},
+    )
+    assert missing_metadata.status_code == 422
+
+
+def test_optimizer_rejects_mismatched_timestamp_series():
+    scenario = main.demo_scenario().model_dump()
+    scenario["grid_emissions_metadata"]["timestamps"] = [
+        timestamp_for_hour(hour + 1) for hour in range(24)
+    ]
+
+    response = client.post("/api/optimize", json={"scenario": scenario})
+
+    assert response.status_code == 422
+    assert "same 24 intervals" in response.json()["detail"]
+
+
+def test_optimizer_rejects_naive_timestamps_and_wrong_timezone_offsets():
+    scenario = main.demo_scenario().model_dump()
+    scenario["tariff_metadata"]["timestamps"][0] = timestamp_for_hour(0).replace(
+        "+00:00", ""
+    )
+    naive = client.post("/api/optimize", json={"scenario": scenario})
+    assert naive.status_code == 422
+    assert "explicit UTC offset" in naive.json()["detail"]
+
+    scenario = main.demo_scenario().model_dump()
+    scenario["tariff_metadata"]["timezone"] = "Europe/Berlin"
+    scenario["grid_emissions_metadata"]["timezone"] = "Europe/Berlin"
+    mismatch = client.post("/api/optimize", json={"scenario": scenario})
+    assert mismatch.status_code == 422
+    assert "does not match the declared IANA time zone" in mismatch.json()["detail"]
+
+
+def test_optimizer_accepts_matching_non_utc_timezone_offsets():
+    scenario = main.demo_scenario().model_dump()
+    local_timezone = timezone(timedelta(hours=5, minutes=30))
+    start = datetime(2025, 1, 1, tzinfo=local_timezone)
+    timestamps = [
+        (start + timedelta(hours=hour)).isoformat()
+        for hour in range(24)
+    ]
+    scenario["tariff_metadata"]["timezone"] = "Asia/Kolkata"
+    scenario["grid_emissions_metadata"]["timezone"] = "Asia/Kolkata"
+    scenario["tariff_metadata"]["timestamps"] = timestamps
+    scenario["grid_emissions_metadata"]["timestamps"] = timestamps
+
+    response = client.post("/api/optimize", json={"scenario": scenario})
+
+    assert response.status_code == 200
+    assert response.json()["time_series_metadata"]["timezone"] == "Asia/Kolkata"
+
+
+def test_optimizer_rejects_noncanonical_series_units():
+    scenario = main.demo_scenario().model_dump()
+    scenario["tariff_metadata"]["unit"] = "INR/MWh"
+
+    response = client.post("/api/optimize", json={"scenario": scenario})
+
+    assert response.status_code == 422
+    assert "ISO currency code per kWh" in response.json()["detail"]
 
 
 def test_infeasible_schedule_is_returned_without_claiming_success():
@@ -329,6 +442,26 @@ def test_report_hash_verifies_and_tampering_is_detected():
     assert valid.status_code == 200
     assert valid.json()["valid"] is True
     assert "does not authenticate" in valid.json()["note"]
+    assert report["time_series_metadata"]["timezone"] == "UTC"
+    assert report["hourly"][0]["timestamp"] == timestamp_for_hour(0)
+    assert report["hourly"][0]["tariff_timestamp"] == report["hourly"][0]["grid_emissions_timestamp"]
+
+    tampered_metadata = {
+        **report,
+        "time_series_metadata": {
+            **report["time_series_metadata"],
+            "tariff_source": "changed source description",
+        },
+    }
+    metadata_tamper = client.post(
+        "/api/verify-hash",
+        json={
+            "report": tampered_metadata,
+            "report_hash": response_report["evidence"]["report_hash"],
+        },
+    )
+    assert metadata_tamper.status_code == 200
+    assert metadata_tamper.json()["valid"] is False
 
     tampered_report = {**report, "scenario": "modified after hashing"}
     tampered = client.post(

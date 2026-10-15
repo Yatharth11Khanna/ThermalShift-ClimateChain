@@ -139,6 +139,10 @@ components:
           enum: [synthetic_demo, user_supplied_unverified]
           default: user_supplied_unverified
           description: Caller-supplied label only; the API does not authenticate source records.
+        tariff_metadata:
+          $ref: "#/components/schemas/ThermalShiftHourlySeriesMetadata"
+        grid_emissions_metadata:
+          $ref: "#/components/schemas/ThermalShiftHourlySeriesMetadata"
         baseline_kwh:
           type: array
           minItems: 24
@@ -175,6 +179,8 @@ components:
           type: number
       required:
         - name
+        - tariff_metadata
+        - grid_emissions_metadata
         - baseline_kwh
         - tariff_per_kwh
         - grid_kgco2_per_kwh
@@ -206,6 +212,8 @@ components:
           type: string
         evaluation_notice:
           type: string
+        time_series_metadata:
+          $ref: "#/components/schemas/ThermalShiftReportTimeSeriesMetadata"
         energy_budget_kwh:
           type: number
         baseline:
@@ -220,6 +228,10 @@ components:
         temperature_check:
           type: object
           additionalProperties: true
+        hourly:
+          type: array
+          items:
+            $ref: "#/components/schemas/ThermalShiftHourlyReport"
         evidence:
           $ref: "#/components/schemas/ThermalShiftEvidence"
       additionalProperties: true
@@ -266,9 +278,11 @@ components:
           type: string
           minLength: 1
           maxLength: 100000
+        metadata:
+          $ref: "#/components/schemas/ThermalShiftCsvImportMetadata"
         scenario:
           $ref: "#/components/schemas/ThermalShiftScenario"
-      required: [csv_text]
+      required: [csv_text, metadata]
     ThermalShiftCsvImportResult:
       type: object
       properties:
@@ -281,4 +295,128 @@ components:
           items:
             type: string
       required: [scenario, record_count, headers]
+    ThermalShiftHourlySeriesMetadata:
+      type: object
+      properties:
+        timestamps:
+          type: array
+          minItems: 24
+          maxItems: 24
+          items:
+            type: string
+            format: date-time
+          description: ISO 8601 interval starts with explicit offsets; exactly 24 consecutive hourly timestamps.
+        timezone:
+          type: string
+          minLength: 1
+          description: IANA time-zone identifier used to validate the supplied timestamp offsets.
+        unit:
+          type: string
+          minLength: 1
+        source:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Caller-supplied source name or URL; not independently authenticated.
+      required: [timestamps, timezone, unit, source]
+    ThermalShiftCsvImportMetadata:
+      type: object
+      properties:
+        timezone:
+          type: string
+          minLength: 1
+        tariff_unit:
+          type: string
+          pattern: "^[A-Z]{3}/kWh$"
+          description: ISO currency code per kWh, for example INR/kWh or EUR/kWh.
+        tariff_source:
+          type: string
+          minLength: 1
+          maxLength: 500
+        grid_emissions_unit:
+          type: string
+          enum: [kgCO2/kWh]
+        grid_emissions_source:
+          type: string
+          minLength: 1
+          maxLength: 500
+      required:
+        - timezone
+        - tariff_unit
+        - tariff_source
+        - grid_emissions_unit
+        - grid_emissions_source
+    ThermalShiftReportTimeSeriesMetadata:
+      type: object
+      properties:
+        timezone:
+          type: string
+        tariff_unit:
+          type: string
+        tariff_source:
+          type: string
+        grid_emissions_unit:
+          type: string
+        grid_emissions_source:
+          type: string
+        interval_count:
+          type: integer
+          enum: [24]
+        first_interval_start:
+          type: string
+          format: date-time
+        last_interval_start:
+          type: string
+          format: date-time
+        source_metadata_notice:
+          type: string
+      required:
+        - timezone
+        - tariff_unit
+        - tariff_source
+        - grid_emissions_unit
+        - grid_emissions_source
+        - interval_count
+        - first_interval_start
+        - last_interval_start
+        - source_metadata_notice
+    ThermalShiftHourlyReport:
+      type: object
+      properties:
+        hour:
+          type: integer
+          minimum: 0
+          maximum: 23
+        timestamp:
+          type: string
+          format: date-time
+        tariff_timestamp:
+          type: string
+          format: date-time
+        grid_emissions_timestamp:
+          type: string
+          format: date-time
+        baseline_kwh:
+          type: number
+        optimized_kwh:
+          type: number
+        tariff:
+          type: number
+        grid_kgco2_per_kwh:
+          type: number
+        baseline_temp_c:
+          type: number
+        optimized_temp_c:
+          type: number
+      required:
+        - hour
+        - timestamp
+        - tariff_timestamp
+        - grid_emissions_timestamp
+        - baseline_kwh
+        - optimized_kwh
+        - tariff
+        - grid_kgco2_per_kwh
+        - baseline_temp_c
+        - optimized_temp_c
 

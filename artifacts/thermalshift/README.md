@@ -39,18 +39,30 @@ The state carries forward from one hour to the next, but this is not a calibrate
 
 The configured temperature bounds are scenario inputs, not certification that those bounds are appropriate for a facility or product. Validate all model parameters and any safety limits independently before using the outputs for decisions.
 
+### Minimum additional physics for a defensible thermal model
+
+Do not interpret the current `cooling_effect_c_per_kwh` constant as a calibrated physical parameter. A minimum lumped room-air model would need an effective thermal capacitance `C_eff`, envelope heat-transfer conductance `UA`, timestamped ambient temperature, and measured internal/door heat loads. Cooling should be driven by measured electrical input and an identified refrigeration COP/capacity relationship under ambient and load conditions; these parameters must be estimated from co-timed facility data, not filled with generic values.
+
+Any product-safety claim additionally requires product temperature or a calibrated product thermal-mass/room-coupling state, representative sensor placement, and validated product limits. Defrost, compressor cycling, door events, inventory, and spatial variation can require further states or constraints. This milestone does not add any of those parameters or change the existing simplified equation.
+
 ## Cost, emissions, and provenance
 
-Baseline and optimized cost are each calculated as `sum(hourly_kWh * the same supplied hourly tariff)`. Baseline and optimized emissions are each calculated as `sum(hourly_kWh * the same supplied hourly grid_kgco2_per_kwh)`. These quantities are reported separately.
+Baseline and optimized cost are each calculated as `sum(hourly_kWh * the same supplied hourly tariff)`. Baseline and optimized emissions are each calculated independently as `sum(hourly_kWh * the same supplied hourly grid_kgco2_per_kwh)`.
 
 Because total cooling electricity is held constant, any modeled emissions difference comes only from moving electricity between hours with different supplied grid-intensity values. It is not inferred from lower energy consumption, and it is not a measured or guaranteed real-world emissions reduction. If grid intensity is constant, the fixed-energy model must report equal baseline and optimized emissions.
+
+Both series now require explicit interval starts, an IANA time-zone identifier, units, and source descriptions. The API validates that each series has 24 offset-aware timestamps at consecutive one-hour intervals and that tariff and grid-emissions intervals match in the same order. It rejects naive timestamps, invalid time-zone offsets, gaps, duplicates, and mismatched series instead of aligning by array position alone. Timestamp strings, units, and source descriptions are echoed into each hourly report and covered by the report hash.
+
+Tariff units must use an ISO currency code per kWh (for example `INR/kWh` or `EUR/kWh`). Grid-emissions values must be `kgCO2/kWh`; convert other source units explicitly before upload. No currency or emissions-unit conversion is inferred.
+
+The CSV import remains at `/api/import-csv` and still requires exactly 24 rows. Its columns are `hour`, `tariff_timestamp`, `baseline_kwh`, `tariff_per_kwh`, `grid_emissions_timestamp`, `grid_kgco2_per_kwh`, and `ambient_heat_gain_c`. The two timestamp columns on each row must refer to the same interval. The upload form collects shared time zone and each series' units and source. The `hour` field is a 0–23 row index; actual interval starts are represented by timestamps.
 
 Input labels are:
 
 - `synthetic_demo`: the built-in demonstration series; not facility measurements.
 - `user_supplied_unverified`: values submitted directly or in a CSV; source, meter, measurement status, and provenance have not been independently verified.
 
-The provenance label itself is caller-supplied metadata, not authentication. Results are marked `illustrative_model_estimate`. The application currently has no independently verified measured input, public-dataset ingestion, live grid feed, meter connection, or refrigeration-equipment connection.
+The provenance label and source descriptions are caller-supplied metadata, not authentication. Results are marked `illustrative_model_estimate`. The application currently has no independently verified measured input, public-dataset ingestion, live grid feed, meter connection, or refrigeration-equipment connection.
 
 ## Reproducible benchmark scenarios
 
@@ -66,13 +78,31 @@ The useful-flexibility case deliberately has a strong time-of-use contrast. It d
 
 ## Public cold-storage dataset candidate
 
-**Temperature and Humidity Time Series of Cold Storage Room Monitoring**, Henrichs, Stoll, and Krupitzer, Zenodo record [10.5281/zenodo.15130001](https://doi.org/10.5281/zenodo.15130001), published 2025-04-03. The official [Zenodo record](https://zenodo.org/records/15130001) identifies the dataset license as **Creative Commons Attribution 4.0 International (CC BY 4.0)**. Attribute the creators and link the DOI when reusing it; review the license terms and record for updates before redistribution.
+**Temperature and Humidity Time Series of Cold Storage Room Monitoring**, by Elia Henrichs, Florian Stoll, and Christian Krupitzer, Zenodo version DOI [10.5281/zenodo.15130001](https://doi.org/10.5281/zenodo.15130001), published 2025-04-03. The official [record](https://zenodo.org/records/15130001) and [metadata API](https://zenodo.org/api/records/15130001) list **Creative Commons Attribution 4.0 International (CC BY 4.0)**. Attribute the creators and cite the DOI if reusing the material; check the current record and license terms before redistribution.
 
-The record describes raw and preprocessed readings from nine DHT22 sensors in one cold-storage room. The CSVs contain date, time, temperature, and humidity; related files include logged door-opening/sensor-movement actions and an overview. The logger source is described as sampling every five seconds. The preprocessing removes repeated headers and aligns series by filling missing values with `NaN`.
+The record contains `Raw.zip`, `Preprocessed.zip`, nine DHT22 logger files, `overview.csv`, `experiment_actions.csv`, preprocessing and preliminary-analysis notebooks, logger source, and a wiring diagram. The logger labels temperature in °C and relative humidity in % and samples every five seconds. The action log records door openings/closures and product-in/product-out events. The preprocessing notebook identifies SENSOR01 and SENSOR02 as movable sensors and aligns the preprocessed series to a shared interval by inserting missing values.
 
-**Limitations for ThermalShift:** the dataset does not provide the hourly refrigeration-electricity baseline, tariff, grid-emissions intensity, ambient-temperature series, or model cooling coefficient required by the current optimizer. It is one monitored room and cannot, by itself, validate energy shifting, COP, the simplified temperature equation, or emissions. Its temperatures and actions may support future sensor-data and temperature-dynamics validation after provenance, missing data, units, and time alignment are reviewed. To use it for optimization validation, pair it with suitable measured electrical/refrigeration data and independently sourced hourly tariffs and grid intensity. Do not fill its missing fields with the synthetic demo values or report its readings as integrated in this app; no dataset has been ingested.
+I downloaded and inspected the public preprocessed archive and overview; no dataset was added to the app. The nine aligned sensor files each cover **2024-09-02 09:35:25 to 2024-09-11 11:24:55** at five-second spacing (156,835 interval slots). These timestamps have no UTC offset or declared time zone. Missing temperature/humidity slots in the aligned files vary substantially by sensor:
 
-Source details: [Zenodo record and files](https://zenodo.org/records/15130001), [record metadata and license](https://zenodo.org/api/records/15130001), and the associated [ACSOS-C 2025 publication](https://doi.org/10.1109/ACSOS-C66519.2025.00033). Checked 2026-10-13.
+| Sensor | Missing slots | Observed temperature range |
+| --- | ---: | ---: |
+| SENSOR01 | 966 | 5.3–42.2 °C |
+| SENSOR02 | 0 | 5.8–38.7 °C |
+| SENSOR03 | 72,391 | 4.8–12.3 °C |
+| SENSOR04 | 5,667 | 5.6–21.9 °C |
+| SENSOR05 | 125,734 | 6.9–13.3 °C |
+| SENSOR06 | 0 | 5.1–22.1 °C |
+| SENSOR07 | 0 | 6.0–22.8 °C |
+| SENSOR08 | 0 | 9.0–22.3 °C |
+| SENSOR09 | 124,135 | 5.4–12.7 °C |
+
+The raw `overview.csv` shows that the sensors' original start/end times differ; SENSOR05 and SENSOR09 begin on 2024-09-09, while the other sensors begin on 2024-09-02. The high temperature spread and large missing spans mean channel identity, sensor movement, missingness, and alignment must be reviewed before interpreting room-wide behavior.
+
+**What these observations can support:** descriptive per-sensor temperature/humidity trends, rate-of-change summaries, inter-sensor variation, missingness analysis, and cautious event-window comparisons around logged door/product actions, using only the dataset's own naive wall-clock timestamps. They do not establish calibrated room heat-transfer dynamics or a counterfactual optimized temperature trajectory.
+
+**What they cannot validate:** the dataset contains no refrigeration electricity, compressor state, thermal cooling output, COP/capacity curve, outside ambient-temperature series, or product-core temperature. Therefore it cannot calibrate the optimizer's energy-to-temperature coefficient or prove electricity use, energy shifting, cost, or emissions savings. Its timestamps have no declared time zone, so they must not be joined to the timezone-aware tariff/emissions input contract without authoritative timezone evidence. The dataset is not ingested; do not fill its missing fields with synthetic demo values.
+
+Source details: [Zenodo record and files](https://zenodo.org/records/15130001), [record metadata and license](https://zenodo.org/api/records/15130001), and the associated [ACSOS-C 2025 publication](https://doi.org/10.1109/ACSOS-C66519.2025.00033). Inspected 2026-10-15.
 
 ## Evidence hash: exact scope
 

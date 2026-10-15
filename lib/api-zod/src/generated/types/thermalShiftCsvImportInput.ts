@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ThermalShiftCsvImportMetadata } from './thermalShiftCsvImportMetadata';
 import type { ThermalShiftScenario } from './thermalShiftScenario';
 
 export interface ThermalShiftCsvImportInput {
@@ -13,5 +14,6 @@ export interface ThermalShiftCsvImportInput {
      * @maxLength 100000
      */
   csv_text: string;
+  metadata: ThermalShiftCsvImportMetadata;
   scenario?: ThermalShiftScenario;
 }

@@ -5,12 +5,15 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ThermalShiftHourlySeriesMetadata } from './thermalShiftHourlySeriesMetadata';
 import type { ThermalShiftScenarioInputProvenance } from './thermalShiftScenarioInputProvenance';
 
 export interface ThermalShiftScenario {
   name: string;
   /** Caller-supplied label only; the API does not authenticate source records. */
   input_provenance?: ThermalShiftScenarioInputProvenance;
+  tariff_metadata: ThermalShiftHourlySeriesMetadata;
+  grid_emissions_metadata: ThermalShiftHourlySeriesMetadata;
   /**
      * @minItems 24
      * @maxItems 24

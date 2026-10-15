@@ -8,6 +8,8 @@
 
 export * from './healthStatus';
 export * from './thermalShiftCsvImportInput';
+export * from './thermalShiftCsvImportMetadata';
+export * from './thermalShiftCsvImportMetadataGridEmissionsUnit';
 export * from './thermalShiftCsvImportResult';
 export * from './thermalShiftEvidence';
 export * from './thermalShiftEvidenceAlgorithm';
@@ -15,6 +17,8 @@ export * from './thermalShiftHashInput';
 export * from './thermalShiftHashInputReport';
 export * from './thermalShiftHashResult';
 export * from './thermalShiftHealth';
+export * from './thermalShiftHourlyReport';
+export * from './thermalShiftHourlySeriesMetadata';
 export * from './thermalShiftOptimizeInput';
 export * from './thermalShiftReport';
 export * from './thermalShiftReportBaseline';
@@ -23,5 +27,7 @@ export * from './thermalShiftReportInputProvenance';
 export * from './thermalShiftReportModelOutputClassification';
 export * from './thermalShiftReportOptimized';
 export * from './thermalShiftReportTemperatureCheck';
+export * from './thermalShiftReportTimeSeriesMetadata';
+export * from './thermalShiftReportTimeSeriesMetadataIntervalCount';
 export * from './thermalShiftScenario';
 export * from './thermalShiftScenarioInputProvenance';

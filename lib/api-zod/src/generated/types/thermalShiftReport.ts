@@ -6,12 +6,14 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ThermalShiftEvidence } from './thermalShiftEvidence';
+import type { ThermalShiftHourlyReport } from './thermalShiftHourlyReport';
 import type { ThermalShiftReportBaseline } from './thermalShiftReportBaseline';
 import type { ThermalShiftReportChangePct } from './thermalShiftReportChangePct';
 import type { ThermalShiftReportInputProvenance } from './thermalShiftReportInputProvenance';
 import type { ThermalShiftReportModelOutputClassification } from './thermalShiftReportModelOutputClassification';
 import type { ThermalShiftReportOptimized } from './thermalShiftReportOptimized';
 import type { ThermalShiftReportTemperatureCheck } from './thermalShiftReportTemperatureCheck';
+import type { ThermalShiftReportTimeSeriesMetadata } from './thermalShiftReportTimeSeriesMetadata';
 
 export interface ThermalShiftReport {
   feasible?: boolean;
@@ -22,11 +24,13 @@ export interface ThermalShiftReport {
   data_notice?: string;
   provenance_notice?: string;
   evaluation_notice?: string;
+  time_series_metadata?: ThermalShiftReportTimeSeriesMetadata;
   energy_budget_kwh?: number;
   baseline?: ThermalShiftReportBaseline;
   optimized?: ThermalShiftReportOptimized;
   change_pct?: ThermalShiftReportChangePct;
   temperature_check?: ThermalShiftReportTemperatureCheck;
+  hourly?: ThermalShiftHourlyReport[];
   evidence?: ThermalShiftEvidence;
   [key: string]: unknown;
  }

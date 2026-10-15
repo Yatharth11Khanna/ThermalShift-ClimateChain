@@ -26,10 +26,34 @@ export const ThermalShiftScenarioInputProvenance = {
   user_supplied_unverified: 'user_supplied_unverified',
 } as const;
 
+export interface ThermalShiftHourlySeriesMetadata {
+  /**
+     * ISO 8601 interval starts with explicit offsets; exactly 24 consecutive hourly timestamps.
+     * @minItems 24
+     * @maxItems 24
+     */
+  timestamps: string[];
+  /**
+     * IANA time-zone identifier used to validate the supplied timestamp offsets.
+     * @minLength 1
+     */
+  timezone: string;
+  /** @minLength 1 */
+  unit: string;
+  /**
+     * Caller-supplied source name or URL; not independently authenticated.
+     * @minLength 1
+     * @maxLength 500
+     */
+  source: string;
+}
+
 export interface ThermalShiftScenario {
   name: string;
   /** Caller-supplied label only; the API does not authenticate source records. */
   input_provenance?: ThermalShiftScenarioInputProvenance;
+  tariff_metadata: ThermalShiftHourlySeriesMetadata;
+  grid_emissions_metadata: ThermalShiftHourlySeriesMetadata;
   /**
      * @minItems 24
      * @maxItems 24
@@ -90,6 +114,42 @@ export type ThermalShiftReportChangePct = { [key: string]: unknown };
 
 export type ThermalShiftReportTemperatureCheck = { [key: string]: unknown };
 
+export type ThermalShiftReportTimeSeriesMetadataIntervalCount = typeof ThermalShiftReportTimeSeriesMetadataIntervalCount[keyof typeof ThermalShiftReportTimeSeriesMetadataIntervalCount];
+
+
+export const ThermalShiftReportTimeSeriesMetadataIntervalCount = {
+  NUMBER_24: 24,
+} as const;
+
+export interface ThermalShiftReportTimeSeriesMetadata {
+  timezone: string;
+  tariff_unit: string;
+  tariff_source: string;
+  grid_emissions_unit: string;
+  grid_emissions_source: string;
+  interval_count: ThermalShiftReportTimeSeriesMetadataIntervalCount;
+  first_interval_start: string;
+  last_interval_start: string;
+  source_metadata_notice: string;
+}
+
+export interface ThermalShiftHourlyReport {
+  /**
+     * @minimum 0
+     * @maximum 23
+     */
+  hour: number;
+  timestamp: string;
+  tariff_timestamp: string;
+  grid_emissions_timestamp: string;
+  baseline_kwh: number;
+  optimized_kwh: number;
+  tariff: number;
+  grid_kgco2_per_kwh: number;
+  baseline_temp_c: number;
+  optimized_temp_c: number;
+}
+
 export type ThermalShiftEvidenceAlgorithm = typeof ThermalShiftEvidenceAlgorithm[keyof typeof ThermalShiftEvidenceAlgorithm];
 
 
@@ -114,11 +174,13 @@ export interface ThermalShiftReport {
   data_notice?: string;
   provenance_notice?: string;
   evaluation_notice?: string;
+  time_series_metadata?: ThermalShiftReportTimeSeriesMetadata;
   energy_budget_kwh?: number;
   baseline?: ThermalShiftReportBaseline;
   optimized?: ThermalShiftReportOptimized;
   change_pct?: ThermalShiftReportChangePct;
   temperature_check?: ThermalShiftReportTemperatureCheck;
+  hourly?: ThermalShiftHourlyReport[];
   evidence?: ThermalShiftEvidence;
   [key: string]: unknown;
  }
@@ -138,12 +200,41 @@ export interface ThermalShiftHashResult {
   note: string;
 }
 
+export type ThermalShiftCsvImportMetadataGridEmissionsUnit = typeof ThermalShiftCsvImportMetadataGridEmissionsUnit[keyof typeof ThermalShiftCsvImportMetadataGridEmissionsUnit];
+
+
+export const ThermalShiftCsvImportMetadataGridEmissionsUnit = {
+  'kgCO2/kWh': 'kgCO2/kWh',
+} as const;
+
+export interface ThermalShiftCsvImportMetadata {
+  /** @minLength 1 */
+  timezone: string;
+  /**
+     * ISO currency code per kWh, for example INR/kWh or EUR/kWh.
+     * @pattern ^[A-Z]{3}/kWh$
+     */
+  tariff_unit: string;
+  /**
+     * @minLength 1
+     * @maxLength 500
+     */
+  tariff_source: string;
+  grid_emissions_unit: ThermalShiftCsvImportMetadataGridEmissionsUnit;
+  /**
+     * @minLength 1
+     * @maxLength 500
+     */
+  grid_emissions_source: string;
+}
+
 export interface ThermalShiftCsvImportInput {
   /**
      * @minLength 1
      * @maxLength 100000
      */
   csv_text: string;
+  metadata: ThermalShiftCsvImportMetadata;
   scenario?: ThermalShiftScenario;
 }
 

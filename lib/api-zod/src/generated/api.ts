@@ -31,6 +31,20 @@ export const GetThermalShiftHealthResponse = zod.object({
  * @summary Retrieve the clearly labeled synthetic demo scenario
  */
 export const getThermalShiftDemoResponseInputProvenanceDefault = `user_supplied_unverified`;
+export const getThermalShiftDemoResponseTariffMetadataTimestampsMin = 24;
+export const getThermalShiftDemoResponseTariffMetadataTimestampsMax = 24;
+
+
+
+export const getThermalShiftDemoResponseTariffMetadataSourceMax = 500;
+
+export const getThermalShiftDemoResponseGridEmissionsMetadataTimestampsMin = 24;
+export const getThermalShiftDemoResponseGridEmissionsMetadataTimestampsMax = 24;
+
+
+
+export const getThermalShiftDemoResponseGridEmissionsMetadataSourceMax = 500;
+
 export const getThermalShiftDemoResponseBaselineKwhItemMin = 0;
 
 export const getThermalShiftDemoResponseBaselineKwhMin = 24;
@@ -56,6 +70,18 @@ export const getThermalShiftDemoResponseAmbientHeatGainCMax = 24;
 export const GetThermalShiftDemoResponse = zod.object({
   "name": zod.string(),
   "input_provenance": zod.enum(['synthetic_demo', 'user_supplied_unverified']).default(getThermalShiftDemoResponseInputProvenanceDefault).describe('Caller-supplied label only; the API does not authenticate source records.'),
+  "tariff_metadata": zod.object({
+  "timestamps": zod.array(zod.coerce.date()).min(getThermalShiftDemoResponseTariffMetadataTimestampsMin).max(getThermalShiftDemoResponseTariffMetadataTimestampsMax).describe('ISO 8601 interval starts with explicit offsets; exactly 24 consecutive hourly timestamps.'),
+  "timezone": zod.string().min(1).describe('IANA time-zone identifier used to validate the supplied timestamp offsets.'),
+  "unit": zod.string().min(1),
+  "source": zod.string().min(1).max(getThermalShiftDemoResponseTariffMetadataSourceMax).describe('Caller-supplied source name or URL; not independently authenticated.')
+}),
+  "grid_emissions_metadata": zod.object({
+  "timestamps": zod.array(zod.coerce.date()).min(getThermalShiftDemoResponseGridEmissionsMetadataTimestampsMin).max(getThermalShiftDemoResponseGridEmissionsMetadataTimestampsMax).describe('ISO 8601 interval starts with explicit offsets; exactly 24 consecutive hourly timestamps.'),
+  "timezone": zod.string().min(1).describe('IANA time-zone identifier used to validate the supplied timestamp offsets.'),
+  "unit": zod.string().min(1),
+  "source": zod.string().min(1).max(getThermalShiftDemoResponseGridEmissionsMetadataSourceMax).describe('Caller-supplied source name or URL; not independently authenticated.')
+}),
   "baseline_kwh": zod.array(zod.number().min(getThermalShiftDemoResponseBaselineKwhItemMin)).min(getThermalShiftDemoResponseBaselineKwhMin).max(getThermalShiftDemoResponseBaselineKwhMax),
   "tariff_per_kwh": zod.array(zod.number().min(getThermalShiftDemoResponseTariffPerKwhItemMin)).min(getThermalShiftDemoResponseTariffPerKwhMin).max(getThermalShiftDemoResponseTariffPerKwhMax),
   "grid_kgco2_per_kwh": zod.array(zod.number().min(getThermalShiftDemoResponseGridKgco2PerKwhItemMin)).min(getThermalShiftDemoResponseGridKgco2PerKwhMin).max(getThermalShiftDemoResponseGridKgco2PerKwhMax),
@@ -74,6 +100,20 @@ export const GetThermalShiftDemoResponse = zod.object({
  * @summary Optimize a 24-hour cooling schedule
  */
 export const optimizeThermalShiftBodyScenarioInputProvenanceDefault = `user_supplied_unverified`;
+export const optimizeThermalShiftBodyScenarioTariffMetadataTimestampsMin = 24;
+export const optimizeThermalShiftBodyScenarioTariffMetadataTimestampsMax = 24;
+
+
+
+export const optimizeThermalShiftBodyScenarioTariffMetadataSourceMax = 500;
+
+export const optimizeThermalShiftBodyScenarioGridEmissionsMetadataTimestampsMin = 24;
+export const optimizeThermalShiftBodyScenarioGridEmissionsMetadataTimestampsMax = 24;
+
+
+
+export const optimizeThermalShiftBodyScenarioGridEmissionsMetadataSourceMax = 500;
+
 export const optimizeThermalShiftBodyScenarioBaselineKwhItemMin = 0;
 
 export const optimizeThermalShiftBodyScenarioBaselineKwhMin = 24;
@@ -100,6 +140,18 @@ export const OptimizeThermalShiftBody = zod.object({
   "scenario": zod.object({
   "name": zod.string(),
   "input_provenance": zod.enum(['synthetic_demo', 'user_supplied_unverified']).default(optimizeThermalShiftBodyScenarioInputProvenanceDefault).describe('Caller-supplied label only; the API does not authenticate source records.'),
+  "tariff_metadata": zod.object({
+  "timestamps": zod.array(zod.coerce.date()).min(optimizeThermalShiftBodyScenarioTariffMetadataTimestampsMin).max(optimizeThermalShiftBodyScenarioTariffMetadataTimestampsMax).describe('ISO 8601 interval starts with explicit offsets; exactly 24 consecutive hourly timestamps.'),
+  "timezone": zod.string().min(1).describe('IANA time-zone identifier used to validate the supplied timestamp offsets.'),
+  "unit": zod.string().min(1),
+  "source": zod.string().min(1).max(optimizeThermalShiftBodyScenarioTariffMetadataSourceMax).describe('Caller-supplied source name or URL; not independently authenticated.')
+}),
+  "grid_emissions_metadata": zod.object({
+  "timestamps": zod.array(zod.coerce.date()).min(optimizeThermalShiftBodyScenarioGridEmissionsMetadataTimestampsMin).max(optimizeThermalShiftBodyScenarioGridEmissionsMetadataTimestampsMax).describe('ISO 8601 interval starts with explicit offsets; exactly 24 consecutive hourly timestamps.'),
+  "timezone": zod.string().min(1).describe('IANA time-zone identifier used to validate the supplied timestamp offsets.'),
+  "unit": zod.string().min(1),
+  "source": zod.string().min(1).max(optimizeThermalShiftBodyScenarioGridEmissionsMetadataSourceMax).describe('Caller-supplied source name or URL; not independently authenticated.')
+}),
   "baseline_kwh": zod.array(zod.number().min(optimizeThermalShiftBodyScenarioBaselineKwhItemMin)).min(optimizeThermalShiftBodyScenarioBaselineKwhMin).max(optimizeThermalShiftBodyScenarioBaselineKwhMax),
   "tariff_per_kwh": zod.array(zod.number().min(optimizeThermalShiftBodyScenarioTariffPerKwhItemMin)).min(optimizeThermalShiftBodyScenarioTariffPerKwhMin).max(optimizeThermalShiftBodyScenarioTariffPerKwhMax),
   "grid_kgco2_per_kwh": zod.array(zod.number().min(optimizeThermalShiftBodyScenarioGridKgco2PerKwhItemMin)).min(optimizeThermalShiftBodyScenarioGridKgco2PerKwhMin).max(optimizeThermalShiftBodyScenarioGridKgco2PerKwhMax),
@@ -114,6 +166,9 @@ export const OptimizeThermalShiftBody = zod.object({
 })
 })
 
+export const optimizeThermalShiftResponseHourlyItemHourMin = 0;
+export const optimizeThermalShiftResponseHourlyItemHourMax = 23;
+
 export const optimizeThermalShiftResponseEvidenceReportHashRegExp = new RegExp('^[a-f0-9]{64}$');
 
 
@@ -126,11 +181,34 @@ export const OptimizeThermalShiftResponse = zod.object({
   "data_notice": zod.string().optional(),
   "provenance_notice": zod.string().optional(),
   "evaluation_notice": zod.string().optional(),
+  "time_series_metadata": zod.object({
+  "timezone": zod.string(),
+  "tariff_unit": zod.string(),
+  "tariff_source": zod.string(),
+  "grid_emissions_unit": zod.string(),
+  "grid_emissions_source": zod.string(),
+  "interval_count": zod.literal(24),
+  "first_interval_start": zod.coerce.date(),
+  "last_interval_start": zod.coerce.date(),
+  "source_metadata_notice": zod.string()
+}).optional(),
   "energy_budget_kwh": zod.number().optional(),
   "baseline": zod.record(zod.string(), zod.unknown()).optional(),
   "optimized": zod.record(zod.string(), zod.unknown()).optional(),
   "change_pct": zod.record(zod.string(), zod.unknown()).optional(),
   "temperature_check": zod.record(zod.string(), zod.unknown()).optional(),
+  "hourly": zod.array(zod.object({
+  "hour": zod.number().int().min(optimizeThermalShiftResponseHourlyItemHourMin).max(optimizeThermalShiftResponseHourlyItemHourMax),
+  "timestamp": zod.coerce.date(),
+  "tariff_timestamp": zod.coerce.date(),
+  "grid_emissions_timestamp": zod.coerce.date(),
+  "baseline_kwh": zod.number(),
+  "optimized_kwh": zod.number(),
+  "tariff": zod.number(),
+  "grid_kgco2_per_kwh": zod.number(),
+  "baseline_temp_c": zod.number(),
+  "optimized_temp_c": zod.number()
+})).optional(),
   "evidence": zod.object({
   "algorithm": zod.enum(['SHA-256']),
   "report_hash": zod.string().regex(optimizeThermalShiftResponseEvidenceReportHashRegExp),
@@ -164,7 +242,27 @@ export const VerifyThermalShiftReportHashResponse = zod.object({
  */
 export const importThermalShiftCsvBodyCsvTextMax = 100000;
 
+
+export const importThermalShiftCsvBodyMetadataTariffUnitRegExp = new RegExp('^[A-Z]{3}/kWh$');
+export const importThermalShiftCsvBodyMetadataTariffSourceMax = 500;
+
+export const importThermalShiftCsvBodyMetadataGridEmissionsSourceMax = 500;
+
 export const importThermalShiftCsvBodyScenarioInputProvenanceDefault = `user_supplied_unverified`;
+export const importThermalShiftCsvBodyScenarioTariffMetadataTimestampsMin = 24;
+export const importThermalShiftCsvBodyScenarioTariffMetadataTimestampsMax = 24;
+
+
+
+export const importThermalShiftCsvBodyScenarioTariffMetadataSourceMax = 500;
+
+export const importThermalShiftCsvBodyScenarioGridEmissionsMetadataTimestampsMin = 24;
+export const importThermalShiftCsvBodyScenarioGridEmissionsMetadataTimestampsMax = 24;
+
+
+
+export const importThermalShiftCsvBodyScenarioGridEmissionsMetadataSourceMax = 500;
+
 export const importThermalShiftCsvBodyScenarioBaselineKwhItemMin = 0;
 
 export const importThermalShiftCsvBodyScenarioBaselineKwhMin = 24;
@@ -189,9 +287,28 @@ export const importThermalShiftCsvBodyScenarioAmbientHeatGainCMax = 24;
 
 export const ImportThermalShiftCsvBody = zod.object({
   "csv_text": zod.string().min(1).max(importThermalShiftCsvBodyCsvTextMax),
+  "metadata": zod.object({
+  "timezone": zod.string().min(1),
+  "tariff_unit": zod.string().regex(importThermalShiftCsvBodyMetadataTariffUnitRegExp).describe('ISO currency code per kWh, for example INR/kWh or EUR/kWh.'),
+  "tariff_source": zod.string().min(1).max(importThermalShiftCsvBodyMetadataTariffSourceMax),
+  "grid_emissions_unit": zod.enum(['kgCO2/kWh']),
+  "grid_emissions_source": zod.string().min(1).max(importThermalShiftCsvBodyMetadataGridEmissionsSourceMax)
+}),
   "scenario": zod.object({
   "name": zod.string(),
   "input_provenance": zod.enum(['synthetic_demo', 'user_supplied_unverified']).default(importThermalShiftCsvBodyScenarioInputProvenanceDefault).describe('Caller-supplied label only; the API does not authenticate source records.'),
+  "tariff_metadata": zod.object({
+  "timestamps": zod.array(zod.coerce.date()).min(importThermalShiftCsvBodyScenarioTariffMetadataTimestampsMin).max(importThermalShiftCsvBodyScenarioTariffMetadataTimestampsMax).describe('ISO 8601 interval starts with explicit offsets; exactly 24 consecutive hourly timestamps.'),
+  "timezone": zod.string().min(1).describe('IANA time-zone identifier used to validate the supplied timestamp offsets.'),
+  "unit": zod.string().min(1),
+  "source": zod.string().min(1).max(importThermalShiftCsvBodyScenarioTariffMetadataSourceMax).describe('Caller-supplied source name or URL; not independently authenticated.')
+}),
+  "grid_emissions_metadata": zod.object({
+  "timestamps": zod.array(zod.coerce.date()).min(importThermalShiftCsvBodyScenarioGridEmissionsMetadataTimestampsMin).max(importThermalShiftCsvBodyScenarioGridEmissionsMetadataTimestampsMax).describe('ISO 8601 interval starts with explicit offsets; exactly 24 consecutive hourly timestamps.'),
+  "timezone": zod.string().min(1).describe('IANA time-zone identifier used to validate the supplied timestamp offsets.'),
+  "unit": zod.string().min(1),
+  "source": zod.string().min(1).max(importThermalShiftCsvBodyScenarioGridEmissionsMetadataSourceMax).describe('Caller-supplied source name or URL; not independently authenticated.')
+}),
   "baseline_kwh": zod.array(zod.number().min(importThermalShiftCsvBodyScenarioBaselineKwhItemMin)).min(importThermalShiftCsvBodyScenarioBaselineKwhMin).max(importThermalShiftCsvBodyScenarioBaselineKwhMax),
   "tariff_per_kwh": zod.array(zod.number().min(importThermalShiftCsvBodyScenarioTariffPerKwhItemMin)).min(importThermalShiftCsvBodyScenarioTariffPerKwhMin).max(importThermalShiftCsvBodyScenarioTariffPerKwhMax),
   "grid_kgco2_per_kwh": zod.array(zod.number().min(importThermalShiftCsvBodyScenarioGridKgco2PerKwhItemMin)).min(importThermalShiftCsvBodyScenarioGridKgco2PerKwhMin).max(importThermalShiftCsvBodyScenarioGridKgco2PerKwhMax),
@@ -207,6 +324,20 @@ export const ImportThermalShiftCsvBody = zod.object({
 })
 
 export const importThermalShiftCsvResponseScenarioInputProvenanceDefault = `user_supplied_unverified`;
+export const importThermalShiftCsvResponseScenarioTariffMetadataTimestampsMin = 24;
+export const importThermalShiftCsvResponseScenarioTariffMetadataTimestampsMax = 24;
+
+
+
+export const importThermalShiftCsvResponseScenarioTariffMetadataSourceMax = 500;
+
+export const importThermalShiftCsvResponseScenarioGridEmissionsMetadataTimestampsMin = 24;
+export const importThermalShiftCsvResponseScenarioGridEmissionsMetadataTimestampsMax = 24;
+
+
+
+export const importThermalShiftCsvResponseScenarioGridEmissionsMetadataSourceMax = 500;
+
 export const importThermalShiftCsvResponseScenarioBaselineKwhItemMin = 0;
 
 export const importThermalShiftCsvResponseScenarioBaselineKwhMin = 24;
@@ -233,6 +364,18 @@ export const ImportThermalShiftCsvResponse = zod.object({
   "scenario": zod.object({
   "name": zod.string(),
   "input_provenance": zod.enum(['synthetic_demo', 'user_supplied_unverified']).default(importThermalShiftCsvResponseScenarioInputProvenanceDefault).describe('Caller-supplied label only; the API does not authenticate source records.'),
+  "tariff_metadata": zod.object({
+  "timestamps": zod.array(zod.coerce.date()).min(importThermalShiftCsvResponseScenarioTariffMetadataTimestampsMin).max(importThermalShiftCsvResponseScenarioTariffMetadataTimestampsMax).describe('ISO 8601 interval starts with explicit offsets; exactly 24 consecutive hourly timestamps.'),
+  "timezone": zod.string().min(1).describe('IANA time-zone identifier used to validate the supplied timestamp offsets.'),
+  "unit": zod.string().min(1),
+  "source": zod.string().min(1).max(importThermalShiftCsvResponseScenarioTariffMetadataSourceMax).describe('Caller-supplied source name or URL; not independently authenticated.')
+}),
+  "grid_emissions_metadata": zod.object({
+  "timestamps": zod.array(zod.coerce.date()).min(importThermalShiftCsvResponseScenarioGridEmissionsMetadataTimestampsMin).max(importThermalShiftCsvResponseScenarioGridEmissionsMetadataTimestampsMax).describe('ISO 8601 interval starts with explicit offsets; exactly 24 consecutive hourly timestamps.'),
+  "timezone": zod.string().min(1).describe('IANA time-zone identifier used to validate the supplied timestamp offsets.'),
+  "unit": zod.string().min(1),
+  "source": zod.string().min(1).max(importThermalShiftCsvResponseScenarioGridEmissionsMetadataSourceMax).describe('Caller-supplied source name or URL; not independently authenticated.')
+}),
   "baseline_kwh": zod.array(zod.number().min(importThermalShiftCsvResponseScenarioBaselineKwhItemMin)).min(importThermalShiftCsvResponseScenarioBaselineKwhMin).max(importThermalShiftCsvResponseScenarioBaselineKwhMax),
   "tariff_per_kwh": zod.array(zod.number().min(importThermalShiftCsvResponseScenarioTariffPerKwhItemMin)).min(importThermalShiftCsvResponseScenarioTariffPerKwhMin).max(importThermalShiftCsvResponseScenarioTariffPerKwhMax),
   "grid_kgco2_per_kwh": zod.array(zod.number().min(importThermalShiftCsvResponseScenarioGridKgco2PerKwhItemMin)).min(importThermalShiftCsvResponseScenarioGridKgco2PerKwhMin).max(importThermalShiftCsvResponseScenarioGridKgco2PerKwhMax),
