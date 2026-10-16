@@ -47,3 +47,6 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Local ThermalShift public-chain anchor index (not a source artifact)
+/artifacts/thermalshift/backend/thermalshift_anchors.sqlite3*

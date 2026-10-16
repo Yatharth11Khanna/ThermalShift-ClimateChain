@@ -110,6 +110,88 @@ paths:
                 $ref: "#/components/schemas/ThermalShiftCsvImportResult"
         "422":
           description: Invalid CSV schema, values, or hourly records
+  /anchor/status:
+    get:
+      operationId: getThermalShiftAnchorStatus
+      tags: [thermalshift]
+      summary: Check testnet anchoring configuration without returning credentials
+      responses:
+        "200":
+          description: Sepolia readiness and missing configuration names
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ThermalShiftAnchorStatus"
+  /anchor/report/{report_hash}:
+    get:
+      operationId: getThermalShiftAnchorByReportHash
+      tags: [thermalshift]
+      summary: Retrieve the stored anchor record for a canonical report hash
+      parameters:
+        - name: report_hash
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[a-f0-9]{64}$"
+      responses:
+        "200":
+          description: Stored Sepolia transaction record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ThermalShiftAnchorRecord"
+        "404":
+          description: No anchor record exists for this hash
+  /anchor:
+    post:
+      operationId: anchorThermalShiftReport
+      tags: [thermalshift]
+      summary: Anchor the canonical SHA-256 report hash on Ethereum Sepolia
+      description: Creates a zero-value self-transfer with the report hash as transaction calldata. The result is not proof of input authenticity, model validity, or real-world savings.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ThermalShiftAnchorInput"
+      responses:
+        "200":
+          description: Submitted, pending, confirmed, or explicitly unresolved transaction status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ThermalShiftAnchorRecord"
+        "409":
+          description: Supplied report hash does not match canonical report content
+        "422":
+          description: Invalid report or hash
+        "502":
+          description: Sepolia RPC is unavailable or rejected the request before submission
+        "503":
+          description: Anchoring is disabled or missing required server configuration
+  /anchor/verify:
+    post:
+      operationId: verifyThermalShiftAnchor
+      tags: [thermalshift]
+      summary: Verify an anchor against the current report and Sepolia transaction data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ThermalShiftAnchorVerifyInput"
+      responses:
+        "200":
+          description: On-chain field comparison and confirmation status; valid is null while unresolved or pending
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ThermalShiftAnchorVerification"
+        "404":
+          description: No locally stored record exists for this transaction hash
+        "422":
+          description: Invalid report or transaction hash
 components:
   schemas:
     HealthStatus:
@@ -271,6 +353,150 @@ components:
         note:
           type: string
       required: [valid, calculated_hash, provided_hash, note]
+    ThermalShiftAnchorStatus:
+      type: object
+      properties:
+        network:
+          type: string
+        chain_id:
+          type: integer
+        explorer_base_url:
+          type: string
+          format: uri
+        enabled:
+          type: boolean
+        configured:
+          type: boolean
+        ready:
+          type: boolean
+        network_available:
+          type: [boolean, "null"]
+        wallet_address:
+          type: [string, "null"]
+        wallet_balance_wei:
+          type: [string, "null"]
+        confirmations_required:
+          type: integer
+        missing_configuration:
+          type: array
+          items:
+            type: string
+        configuration_error:
+          type: [string, "null"]
+        status_error:
+          type: [string, "null"]
+        notice:
+          type: string
+      required:
+        - network
+        - chain_id
+        - explorer_base_url
+        - enabled
+        - configured
+        - ready
+        - network_available
+        - wallet_address
+        - wallet_balance_wei
+        - confirmations_required
+        - missing_configuration
+        - configuration_error
+        - status_error
+        - notice
+    ThermalShiftAnchorInput:
+      type: object
+      properties:
+        report:
+          type: object
+          additionalProperties: true
+        report_hash:
+          type: string
+          pattern: "^[a-f0-9]{64}$"
+      required: [report, report_hash]
+    ThermalShiftAnchorVerifyInput:
+      type: object
+      properties:
+        report:
+          type: object
+          additionalProperties: true
+        transaction_hash:
+          type: string
+          pattern: "^0x[a-fA-F0-9]{64}$"
+      required: [report, transaction_hash]
+    ThermalShiftAnchorRecord:
+      type: object
+      properties:
+        network:
+          type: string
+        chain_id:
+          type: integer
+        report_hash:
+          type: string
+          pattern: "^[a-f0-9]{64}$"
+        transaction_hash:
+          type: string
+          pattern: "^0x[a-fA-F0-9]{64}$"
+        signer_address:
+          type: string
+        destination_address:
+          type: string
+        status:
+          type: string
+          enum: [prepared, submitted, pending, confirmed, submission_unknown, rejected, failed, mismatch]
+        confirmations:
+          type: integer
+          minimum: 0
+        confirmations_required:
+          type: integer
+          minimum: 1
+        block_number:
+          type: [integer, "null"]
+        explorer_url:
+          type: string
+          format: uri
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        last_error:
+          type: [string, "null"]
+      required:
+        - network
+        - chain_id
+        - report_hash
+        - transaction_hash
+        - signer_address
+        - destination_address
+        - status
+        - confirmations
+        - confirmations_required
+        - block_number
+        - explorer_url
+        - created_at
+        - updated_at
+        - last_error
+    ThermalShiftAnchorVerification:
+      allOf:
+        - $ref: "#/components/schemas/ThermalShiftAnchorRecord"
+        - type: object
+          properties:
+            valid:
+              type: [boolean, "null"]
+            report_matches:
+              type: boolean
+            on_chain_transaction_matches:
+              type: [boolean, "null"]
+            verification_error:
+              type: [string, "null"]
+            note:
+              type: string
+          required:
+            - valid
+            - report_matches
+            - on_chain_transaction_matches
+            - verification_error
+            - note
     ThermalShiftCsvImportInput:
       type: object
       properties:

@@ -200,6 +200,92 @@ export interface ThermalShiftHashResult {
   note: string;
 }
 
+export interface ThermalShiftAnchorStatus {
+  network: string;
+  chain_id: number;
+  explorer_base_url: string;
+  enabled: boolean;
+  configured: boolean;
+  ready: boolean;
+  /** @nullable */
+  network_available: boolean | null;
+  /** @nullable */
+  wallet_address: string | null;
+  /** @nullable */
+  wallet_balance_wei: string | null;
+  confirmations_required: number;
+  missing_configuration: string[];
+  /** @nullable */
+  configuration_error: string | null;
+  /** @nullable */
+  status_error: string | null;
+  notice: string;
+}
+
+export type ThermalShiftAnchorInputReport = { [key: string]: unknown };
+
+export interface ThermalShiftAnchorInput {
+  report: ThermalShiftAnchorInputReport;
+  /** @pattern ^[a-f0-9]{64}$ */
+  report_hash: string;
+}
+
+export type ThermalShiftAnchorVerifyInputReport = { [key: string]: unknown };
+
+export interface ThermalShiftAnchorVerifyInput {
+  report: ThermalShiftAnchorVerifyInputReport;
+  /** @pattern ^0x[a-fA-F0-9]{64}$ */
+  transaction_hash: string;
+}
+
+export type ThermalShiftAnchorRecordStatus = typeof ThermalShiftAnchorRecordStatus[keyof typeof ThermalShiftAnchorRecordStatus];
+
+
+export const ThermalShiftAnchorRecordStatus = {
+  prepared: 'prepared',
+  submitted: 'submitted',
+  pending: 'pending',
+  confirmed: 'confirmed',
+  submission_unknown: 'submission_unknown',
+  rejected: 'rejected',
+  failed: 'failed',
+  mismatch: 'mismatch',
+} as const;
+
+export interface ThermalShiftAnchorRecord {
+  network: string;
+  chain_id: number;
+  /** @pattern ^[a-f0-9]{64}$ */
+  report_hash: string;
+  /** @pattern ^0x[a-fA-F0-9]{64}$ */
+  transaction_hash: string;
+  signer_address: string;
+  destination_address: string;
+  status: ThermalShiftAnchorRecordStatus;
+  /** @minimum 0 */
+  confirmations: number;
+  /** @minimum 1 */
+  confirmations_required: number;
+  /** @nullable */
+  block_number: number | null;
+  explorer_url: string;
+  created_at: string;
+  updated_at: string;
+  /** @nullable */
+  last_error: string | null;
+}
+
+export type ThermalShiftAnchorVerification = ThermalShiftAnchorRecord & ({
+  /** @nullable */
+  valid: boolean | null;
+  report_matches: boolean;
+  /** @nullable */
+  on_chain_transaction_matches: boolean | null;
+  /** @nullable */
+  verification_error: string | null;
+  note: string;
+});
+
 export type ThermalShiftCsvImportMetadataGridEmissionsUnit = typeof ThermalShiftCsvImportMetadataGridEmissionsUnit[keyof typeof ThermalShiftCsvImportMetadataGridEmissionsUnit];
 
 

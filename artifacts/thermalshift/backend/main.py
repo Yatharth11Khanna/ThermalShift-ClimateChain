@@ -1,4 +1,5 @@
 import csv
+import hmac
 import io
 import math
 import re
@@ -12,6 +13,13 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from scipy.optimize import linprog
+from anchoring import (
+    AnchorNotConfigured,
+    AnchorNotFound,
+    AnchorRPCRejected,
+    AnchorRPCUnavailable,
+    SepoliaAnchorService,
+)
 
 app = FastAPI(title="ThermalShift API", version="0.1.0", description="Carbon-aware cold-storage scheduling prototype")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
@@ -55,6 +63,22 @@ class CsvImportRequest(BaseModel):
     csv_text: str = Field(min_length=1, max_length=100000)
     metadata: CsvImportMetadata
     scenario: Optional[Scenario] = None
+
+class AnchorReportRequest(BaseModel):
+    report: dict
+    report_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+class AnchorVerifyRequest(BaseModel):
+    report: dict
+    transaction_hash: str = Field(pattern=r"^0x[0-9a-fA-F]{64}$")
+
+anchor_service = SepoliaAnchorService()
+
+
+def canonical_report_hash(report: dict) -> str:
+    """Hash report content excluding the self-referential evidence object."""
+    canonical_report = {key: value for key, value in report.items() if key != "evidence"}
+    return sha256(rfc8785.dumps(canonical_report)).hexdigest()
 
 
 def synthetic_series_metadata(source: str):
@@ -515,11 +539,10 @@ def optimize(req: OptimizeRequest):
         "weights": {"cost": s.cost_weight, "carbon": s.carbon_weight},
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
-    canonical = rfc8785.dumps(result_payload)
     result_payload["evidence"] = {
         "algorithm": "SHA-256",
-        "report_hash": sha256(canonical).hexdigest(),
-        "status": "Hash generated locally; no blockchain transaction has been submitted.",
+        "report_hash": canonical_report_hash(result_payload),
+        "status": "SHA-256 generated locally; any on-chain anchor is recorded separately.",
         "scope": "Detects changes to canonical report content when compared with a trusted reference hash; does not authenticate input provenance, validate measurements or model results, or prove blockchain anchoring.",
     }
     return result_payload
@@ -530,11 +553,58 @@ def verify_hash(payload: dict):
     report = payload.get("report")
     if not isinstance(report, dict) or not report_hash:
         raise HTTPException(422, "Provide report and report_hash.")
-    canonical = rfc8785.dumps(report)
-    calculated = sha256(canonical).hexdigest()
+    calculated = canonical_report_hash(report)
     return {
         "valid": calculated == report_hash,
         "calculated_hash": calculated,
         "provided_hash": report_hash,
         "note": "This compares the canonical supplied report content with the supplied hash. It does not authenticate input provenance, verify measurements or model validity, or establish a blockchain record.",
     }
+
+
+@app.get("/api/anchor/status")
+def get_anchor_status():
+    return anchor_service.status()
+
+
+@app.get("/api/anchor/report/{report_hash}")
+def get_anchor_by_report_hash(report_hash: str):
+    try:
+        anchor = anchor_service.get_by_report_hash(report_hash)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    if anchor is None:
+        raise HTTPException(404, "No stored anchor exists for that report hash.")
+    return anchor
+
+
+@app.post("/api/anchor")
+def anchor_report(payload: AnchorReportRequest):
+    calculated_hash = canonical_report_hash(payload.report)
+    if not hmac.compare_digest(calculated_hash, payload.report_hash):
+        raise HTTPException(
+            409,
+            "Submitted report hash does not match the canonical report contents.",
+        )
+    try:
+        return anchor_service.anchor_report(calculated_hash)
+    except AnchorNotConfigured as exc:
+        raise HTTPException(503, str(exc)) from exc
+    except (AnchorRPCUnavailable, AnchorRPCRejected) as exc:
+        raise HTTPException(502, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+@app.post("/api/anchor/verify")
+def verify_anchor(payload: AnchorVerifyRequest):
+    current_report_hash = canonical_report_hash(payload.report)
+    try:
+        return anchor_service.verify_anchor(
+            payload.transaction_hash,
+            current_report_hash,
+        )
+    except AnchorNotFound as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc

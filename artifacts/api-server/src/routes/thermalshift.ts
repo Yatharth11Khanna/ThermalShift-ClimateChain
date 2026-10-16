@@ -41,5 +41,25 @@ router.post("/verify-hash", (req, res) =>
 router.post("/import-csv", (req, res) =>
   forwardToThermalShift(req, res, "import-csv"),
 );
+router.get("/anchor/status", (req, res) =>
+  forwardToThermalShift(req, res, "anchor/status"),
+);
+router.get("/anchor/report/:reportHash", (req, res) => {
+  const rawReportHash = req.params.reportHash;
+  const reportHash = Array.isArray(rawReportHash)
+    ? rawReportHash[0]
+    : rawReportHash;
+  return forwardToThermalShift(
+    req,
+    res,
+    `anchor/report/${encodeURIComponent(reportHash ?? "")}`,
+  );
+});
+router.post("/anchor", (req, res) =>
+  forwardToThermalShift(req, res, "anchor"),
+);
+router.post("/anchor/verify", (req, res) =>
+  forwardToThermalShift(req, res, "anchor/verify"),
+);
 
 export default router;

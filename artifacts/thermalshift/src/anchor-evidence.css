@@ -1,0 +1,275 @@
+.anchor-panel {
+  margin-top: 18px;
+  padding: 22px;
+  border: 1px solid #dfe8e7;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.anchor-panel-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.anchor-icon {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 12px;
+  color: #087e75;
+  background: #e8f7f3;
+}
+
+.anchor-panel-heading h2 {
+  margin: 0;
+  color: #172b2b;
+  font-size: 17px;
+}
+
+.anchor-panel-heading p {
+  margin: 4px 0 0;
+  color: #687a79;
+  font-size: 12px;
+}
+
+.anchor-readiness {
+  margin-left: auto;
+  padding: 6px 10px;
+  border: 1px solid #eadbb7;
+  border-radius: 999px;
+  color: #765819;
+  background: #fff9e9;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.anchor-readiness.is-ready {
+  border-color: #b8e4d8;
+  color: #126b58;
+  background: #edfaf5;
+}
+
+.anchor-description,
+.anchor-trust-note,
+.anchor-safety-note {
+  color: #5c6c6a;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.anchor-description {
+  margin: 16px 0;
+}
+
+.anchor-setup,
+.anchor-inline-note,
+.anchor-record,
+.anchor-verification,
+.anchor-trust-note,
+.anchor-safety-note {
+  border-radius: 11px;
+}
+
+.anchor-setup {
+  margin: 12px 0;
+  padding: 13px 15px;
+  border: 1px solid #e8e4d4;
+  background: #fffcf2;
+  color: #574a29;
+  font-size: 12px;
+}
+
+.anchor-setup ul {
+  margin: 8px 0;
+  padding-left: 18px;
+}
+
+.anchor-setup li + li {
+  margin-top: 3px;
+}
+
+.anchor-setup small {
+  display: block;
+  color: #756c55;
+  line-height: 1.5;
+}
+
+.anchor-inline-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 10px 0;
+  padding: 10px 12px;
+  border: 1px solid #e4ebea;
+  background: #f7faf9;
+  color: #536462;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.anchor-inline-note.is-warning {
+  border-color: #f0d8bd;
+  background: #fff8f1;
+  color: #79502c;
+}
+
+.anchor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin: 14px 0;
+}
+
+.anchor-record {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid #e1e9e7;
+  background: #f8fbfa;
+}
+
+.anchor-record.status-confirmed {
+  border-color: #b8e4d8;
+  background: #f1fbf7;
+}
+
+.anchor-record.status-failed,
+.anchor-record.status-mismatch,
+.anchor-record.status-rejected {
+  border-color: #efc6c1;
+  background: #fff7f6;
+}
+
+.anchor-record-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #23413e;
+  font-size: 12px;
+}
+
+.anchor-record-title span {
+  margin-left: auto;
+  color: #71817f;
+  font-weight: 500;
+}
+
+.anchor-record dl {
+  display: grid;
+  gap: 9px;
+  margin: 13px 0 8px;
+}
+
+.anchor-record dl div {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.anchor-record dt {
+  color: #768583;
+  font-size: 11px;
+}
+
+.anchor-record dd {
+  min-width: 0;
+  margin: 0;
+  color: #263c39;
+  font-size: 11px;
+}
+
+.anchor-record code {
+  overflow-wrap: anywhere;
+}
+
+.anchor-record a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 5px;
+  color: #087e75;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.anchor-record a:hover {
+  text-decoration: underline;
+}
+
+.anchor-last-error {
+  margin: 8px 0;
+  color: #8a4e3d;
+  font-size: 11px;
+}
+
+.anchor-verification {
+  margin-top: 10px;
+  padding: 12px 14px;
+  border: 1px solid #edd3b1;
+  background: #fffaf1;
+  color: #715222;
+  font-size: 12px;
+}
+
+.anchor-verification.is-valid {
+  border-color: #b8e4d8;
+  background: #f1fbf7;
+  color: #126b58;
+}
+
+.anchor-verification p {
+  margin: 5px 0 0;
+  line-height: 1.5;
+}
+
+.anchor-trust-note {
+  margin-top: 14px;
+  padding: 11px 13px;
+  background: #f4f7f7;
+}
+
+.anchor-safety-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin-top: 9px;
+  color: #81552c;
+}
+
+.anchor-safety-note svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+@media (max-width: 620px) {
+  .anchor-panel {
+    padding: 16px;
+  }
+
+  .anchor-panel-heading {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .anchor-readiness {
+    margin-left: 52px;
+  }
+
+  .anchor-record-title {
+    flex-wrap: wrap;
+  }
+
+  .anchor-record-title span {
+    width: 100%;
+    margin-left: 25px;
+  }
+
+  .anchor-record dl div {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
+}

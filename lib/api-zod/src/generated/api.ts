@@ -393,3 +393,138 @@ export const ImportThermalShiftCsvResponse = zod.object({
 })
 
 
+/**
+ * @summary Check testnet anchoring configuration without returning credentials
+ */
+export const GetThermalShiftAnchorStatusResponse = zod.object({
+  "network": zod.string(),
+  "chain_id": zod.number().int(),
+  "explorer_base_url": zod.string().url(),
+  "enabled": zod.boolean(),
+  "configured": zod.boolean(),
+  "ready": zod.boolean(),
+  "network_available": zod.boolean().nullable(),
+  "wallet_address": zod.string().nullable(),
+  "wallet_balance_wei": zod.string().nullable(),
+  "confirmations_required": zod.number().int(),
+  "missing_configuration": zod.array(zod.string()),
+  "configuration_error": zod.string().nullable(),
+  "status_error": zod.string().nullable(),
+  "notice": zod.string()
+})
+
+
+/**
+ * @summary Retrieve the stored anchor record for a canonical report hash
+ */
+export const getThermalShiftAnchorByReportHashPathReportHashRegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const GetThermalShiftAnchorByReportHashParams = zod.object({
+  "report_hash": zod.coerce.string().regex(getThermalShiftAnchorByReportHashPathReportHashRegExp)
+})
+
+export const getThermalShiftAnchorByReportHashResponseReportHashRegExp = new RegExp('^[a-f0-9]{64}$');
+export const getThermalShiftAnchorByReportHashResponseTransactionHashRegExp = new RegExp('^0x[a-fA-F0-9]{64}$');
+export const getThermalShiftAnchorByReportHashResponseConfirmationsMin = 0;
+
+
+
+
+export const GetThermalShiftAnchorByReportHashResponse = zod.object({
+  "network": zod.string(),
+  "chain_id": zod.number().int(),
+  "report_hash": zod.string().regex(getThermalShiftAnchorByReportHashResponseReportHashRegExp),
+  "transaction_hash": zod.string().regex(getThermalShiftAnchorByReportHashResponseTransactionHashRegExp),
+  "signer_address": zod.string(),
+  "destination_address": zod.string(),
+  "status": zod.enum(['prepared', 'submitted', 'pending', 'confirmed', 'submission_unknown', 'rejected', 'failed', 'mismatch']),
+  "confirmations": zod.number().int().min(getThermalShiftAnchorByReportHashResponseConfirmationsMin),
+  "confirmations_required": zod.number().int().min(1),
+  "block_number": zod.number().int().nullable(),
+  "explorer_url": zod.string().url(),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date(),
+  "last_error": zod.string().nullable()
+})
+
+
+/**
+ * Creates a zero-value self-transfer with the report hash as transaction calldata. The result is not proof of input authenticity, model validity, or real-world savings.
+ * @summary Anchor the canonical SHA-256 report hash on Ethereum Sepolia
+ */
+export const anchorThermalShiftReportBodyReportHashRegExp = new RegExp('^[a-f0-9]{64}$');
+
+
+export const AnchorThermalShiftReportBody = zod.object({
+  "report": zod.record(zod.string(), zod.unknown()),
+  "report_hash": zod.string().regex(anchorThermalShiftReportBodyReportHashRegExp)
+})
+
+export const anchorThermalShiftReportResponseReportHashRegExp = new RegExp('^[a-f0-9]{64}$');
+export const anchorThermalShiftReportResponseTransactionHashRegExp = new RegExp('^0x[a-fA-F0-9]{64}$');
+export const anchorThermalShiftReportResponseConfirmationsMin = 0;
+
+
+
+
+export const AnchorThermalShiftReportResponse = zod.object({
+  "network": zod.string(),
+  "chain_id": zod.number().int(),
+  "report_hash": zod.string().regex(anchorThermalShiftReportResponseReportHashRegExp),
+  "transaction_hash": zod.string().regex(anchorThermalShiftReportResponseTransactionHashRegExp),
+  "signer_address": zod.string(),
+  "destination_address": zod.string(),
+  "status": zod.enum(['prepared', 'submitted', 'pending', 'confirmed', 'submission_unknown', 'rejected', 'failed', 'mismatch']),
+  "confirmations": zod.number().int().min(anchorThermalShiftReportResponseConfirmationsMin),
+  "confirmations_required": zod.number().int().min(1),
+  "block_number": zod.number().int().nullable(),
+  "explorer_url": zod.string().url(),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date(),
+  "last_error": zod.string().nullable()
+})
+
+
+/**
+ * @summary Verify an anchor against the current report and Sepolia transaction data
+ */
+export const verifyThermalShiftAnchorBodyTransactionHashRegExp = new RegExp('^0x[a-fA-F0-9]{64}$');
+
+
+export const VerifyThermalShiftAnchorBody = zod.object({
+  "report": zod.record(zod.string(), zod.unknown()),
+  "transaction_hash": zod.string().regex(verifyThermalShiftAnchorBodyTransactionHashRegExp)
+})
+
+export const verifyThermalShiftAnchorResponseOneReportHashRegExp = new RegExp('^[a-f0-9]{64}$');
+export const verifyThermalShiftAnchorResponseOneTransactionHashRegExp = new RegExp('^0x[a-fA-F0-9]{64}$');
+export const verifyThermalShiftAnchorResponseOneConfirmationsMin = 0;
+
+
+
+
+export const VerifyThermalShiftAnchorResponse = zod.object({
+  "network": zod.string(),
+  "chain_id": zod.number().int(),
+  "report_hash": zod.string().regex(verifyThermalShiftAnchorResponseOneReportHashRegExp),
+  "transaction_hash": zod.string().regex(verifyThermalShiftAnchorResponseOneTransactionHashRegExp),
+  "signer_address": zod.string(),
+  "destination_address": zod.string(),
+  "status": zod.enum(['prepared', 'submitted', 'pending', 'confirmed', 'submission_unknown', 'rejected', 'failed', 'mismatch']),
+  "confirmations": zod.number().int().min(verifyThermalShiftAnchorResponseOneConfirmationsMin),
+  "confirmations_required": zod.number().int().min(1),
+  "block_number": zod.number().int().nullable(),
+  "explorer_url": zod.string().url(),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date(),
+  "last_error": zod.string().nullable()
+}).and(zod.object({
+  "valid": zod.boolean().nullable(),
+  "report_matches": zod.boolean(),
+  "on_chain_transaction_matches": zod.boolean().nullable(),
+  "verification_error": zod.string().nullable(),
+  "note": zod.string()
+}))
+
+

@@ -7,6 +7,14 @@
  */
 
 export * from './healthStatus';
+export * from './thermalShiftAnchorInput';
+export * from './thermalShiftAnchorInputReport';
+export * from './thermalShiftAnchorRecord';
+export * from './thermalShiftAnchorRecordStatus';
+export * from './thermalShiftAnchorStatus';
+export * from './thermalShiftAnchorVerification';
+export * from './thermalShiftAnchorVerifyInput';
+export * from './thermalShiftAnchorVerifyInputReport';
 export * from './thermalShiftCsvImportInput';
 export * from './thermalShiftCsvImportMetadata';
 export * from './thermalShiftCsvImportMetadataGridEmissionsUnit';

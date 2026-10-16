@@ -106,9 +106,29 @@ Source details: [Zenodo record and files](https://zenodo.org/records/15130001), 
 
 ## Evidence hash: exact scope
 
-Each feasible optimization report is serialized using RFC 8785 JSON Canonicalization Scheme and hashed with SHA-256. The hash covers the canonical report fields generated before the `evidence` object is added; the evidence block is excluded to avoid a self-referential hash. The verifier recomputes that hash from the supplied report object and compares it with the supplied reference hash. The UI removes the evidence block before verification.
+Each feasible optimization report is serialized using RFC 8785 JSON Canonicalization Scheme and hashed with SHA-256. The hash covers canonical report fields before the `evidence` object is added; the evidence block is excluded to avoid a self-referential hash. The verifier recomputes the hash and compares it with the reference. The same canonicalization is used before any optional testnet submission.
 
-A match detects whether the canonical report content differs from the content represented by a **trusted reference hash**. By itself, it does not establish who created the report, where or how its inputs were measured, whether the inputs are true, whether the optimization model is physically valid, or whether any claimed result occurred in the real world. It is not a digital signature, trusted timestamp, independent audit, or blockchain proof. Hashes are generated locally; no testnet is connected and no blockchain transaction has been submitted.
+A match detects whether report content differs from the content represented by a **trusted reference hash**. The hash does not establish who created the report, where or how inputs were measured, whether the inputs are true, whether the thermal model is physically valid, or whether any claimed result occurred in the real world. A testnet transaction does not change those limitations.
+
+## Optional testnet hash anchor
+
+The optional integration uses **Ethereum Sepolia** (chain ID `11155111`). Ethereum’s network documentation recommends Sepolia for application development; Etherscan lists its chain ID and provides the linked public explorer ([Ethereum network guidance](https://ethereum.org/developers/docs/networks/), [Etherscan supported chains](https://docs.etherscan.io/supported-chains), [Sepolia explorer](https://sepolia.etherscan.io/)).
+
+There is no smart contract. The service creates a zero-value transaction from a dedicated Sepolia wallet to itself and places only the 32-byte report hash in transaction calldata. The destination is therefore the signer address. Anyone can inspect the transaction input on the explorer. This is a public timestamped inclusion of a hash, not a signature by the report author, trusted measurement provenance, validation of the optimization, or proof of energy/emissions savings.
+
+To enable it for a **private, controlled testnet demonstration**:
+
+1. Add `SEPOLIA_RPC_URL` and `SEPOLIA_PRIVATE_KEY` as server-side Replit Secrets. Use a dedicated, disposable testnet wallet; never use a mainnet key.
+2. Set the non-secret environment variable `THERMALSHIFT_ANCHOR_ENABLED=true`.
+3. Fund that address with Sepolia test ETH from a faucet. The app checks the RPC chain and wallet balance before showing the integration as ready.
+4. Optionally set `THERMALSHIFT_ANCHOR_CONFIRMATIONS` (default: `2`) and `THERMALSHIFT_ANCHOR_DB_PATH` (default: `artifacts/thermalshift/backend/thermalshift_anchors.sqlite3`).
+5. Restart the FastAPI workflow, run an optimization, and submit the report hash from **Evidence & audit**.
+
+The server recomputes the report hash and rejects changed content before signing. The SQLite anchor index stores the report hash, network, sender/destination, transaction hash, confirmation state, and signed raw transaction for exact retry; it never stores the private key or returns the raw transaction. Repeating a report is idempotent and reuses the same signed transaction. A timeout during submission is marked `submission_unknown`, not “confirmed”; verify it on-chain before trying again. “Confirmed” is shown only after a successful receipt, matching transaction calldata, and the configured confirmation depth. The report JSON stays unchanged: anchoring metadata is stored separately.
+
+**Access-control limitation:** the current prototype does not authenticate callers of the anchor API. Keep `THERMALSHIFT_ANCHOR_ENABLED` false on any publicly accessible deployment until access controls and a shared durable transaction store are in place. The default SQLite file is suitable only for a single-instance controlled demo; multi-instance deployments need shared storage. Do not expose a funded signer to an anonymous public endpoint.
+
+The Replit workspace currently has no Sepolia RPC URL or private-key secret configured, and no transaction has been submitted or confirmed. The dashboard reports that state instead of generating a fake transaction.
 
 ## Development checks
 

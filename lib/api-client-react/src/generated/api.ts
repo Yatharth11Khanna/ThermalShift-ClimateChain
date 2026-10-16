@@ -21,6 +21,11 @@ import type {
 
 import type {
   HealthStatus,
+  ThermalShiftAnchorInput,
+  ThermalShiftAnchorRecord,
+  ThermalShiftAnchorStatus,
+  ThermalShiftAnchorVerification,
+  ThermalShiftAnchorVerifyInput,
   ThermalShiftCsvImportInput,
   ThermalShiftCsvImportResult,
   ThermalShiftHashInput,
@@ -552,5 +557,336 @@ export const useImportThermalShiftCsv = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getImportThermalShiftCsvMutationOptions(options));
+    }
+
+export const getGetThermalShiftAnchorStatusUrl = () => {
+
+
+
+
+  return `/api/anchor/status`
+}
+
+/**
+ * @summary Check testnet anchoring configuration without returning credentials
+ */
+export const getThermalShiftAnchorStatus = async ( options?: Parameters<typeof customFetch>[1]): Promise<ThermalShiftAnchorStatus> => {
+
+  return customFetch<ThermalShiftAnchorStatus>(getGetThermalShiftAnchorStatusUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetThermalShiftAnchorStatusQueryKey = () => {
+    return [
+    `/api/anchor/status`
+    ] as const;
+    }
+
+
+export const getGetThermalShiftAnchorStatusQueryOptions = <TData = Awaited<ReturnType<typeof getThermalShiftAnchorStatus>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getThermalShiftAnchorStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetThermalShiftAnchorStatusQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getThermalShiftAnchorStatus>>> = ({ signal }) => getThermalShiftAnchorStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getThermalShiftAnchorStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetThermalShiftAnchorStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getThermalShiftAnchorStatus>>>
+export type GetThermalShiftAnchorStatusQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Check testnet anchoring configuration without returning credentials
+ */
+
+export function useGetThermalShiftAnchorStatus<TData = Awaited<ReturnType<typeof getThermalShiftAnchorStatus>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getThermalShiftAnchorStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetThermalShiftAnchorStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetThermalShiftAnchorByReportHashUrl = (reportHash: string,) => {
+
+
+
+
+  return `/api/anchor/report/${reportHash}`
+}
+
+/**
+ * @summary Retrieve the stored anchor record for a canonical report hash
+ */
+export const getThermalShiftAnchorByReportHash = async (reportHash: string, options?: Parameters<typeof customFetch>[1]): Promise<ThermalShiftAnchorRecord> => {
+
+  return customFetch<ThermalShiftAnchorRecord>(getGetThermalShiftAnchorByReportHashUrl(reportHash),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetThermalShiftAnchorByReportHashQueryKey = (reportHash: string,) => {
+    return [
+    `/api/anchor/report/${reportHash}`
+    ] as const;
+    }
+
+
+export const getGetThermalShiftAnchorByReportHashQueryOptions = <TData = Awaited<ReturnType<typeof getThermalShiftAnchorByReportHash>>, TError = ErrorType<void>>(reportHash: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getThermalShiftAnchorByReportHash>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetThermalShiftAnchorByReportHashQueryKey(reportHash);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getThermalShiftAnchorByReportHash>>> = ({ signal }) => getThermalShiftAnchorByReportHash(reportHash, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: reportHash !== null && reportHash !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getThermalShiftAnchorByReportHash>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetThermalShiftAnchorByReportHashQueryResult = NonNullable<Awaited<ReturnType<typeof getThermalShiftAnchorByReportHash>>>
+export type GetThermalShiftAnchorByReportHashQueryError = ErrorType<void>
+
+
+/**
+ * @summary Retrieve the stored anchor record for a canonical report hash
+ */
+
+export function useGetThermalShiftAnchorByReportHash<TData = Awaited<ReturnType<typeof getThermalShiftAnchorByReportHash>>, TError = ErrorType<void>>(
+ reportHash: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getThermalShiftAnchorByReportHash>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetThermalShiftAnchorByReportHashQueryOptions(reportHash,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAnchorThermalShiftReportUrl = () => {
+
+
+
+
+  return `/api/anchor`
+}
+
+/**
+ * Creates a zero-value self-transfer with the report hash as transaction calldata. The result is not proof of input authenticity, model validity, or real-world savings.
+ * @summary Anchor the canonical SHA-256 report hash on Ethereum Sepolia
+ */
+export const anchorThermalShiftReport = async (thermalShiftAnchorInput: ThermalShiftAnchorInput, options?: Parameters<typeof customFetch>[1]): Promise<ThermalShiftAnchorRecord> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ThermalShiftAnchorRecord>(getAnchorThermalShiftReportUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(thermalShiftAnchorInput)
+  }
+);}
+
+
+
+
+
+export const getAnchorThermalShiftReportMutationKey = () => ['anchorThermalShiftReport'] as const;
+
+export const getAnchorThermalShiftReportMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof anchorThermalShiftReport>>, TError,AnchorThermalShiftReportMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof anchorThermalShiftReport>>, TError,AnchorThermalShiftReportMutationVariables, TContext> => {
+
+const mutationKey = getAnchorThermalShiftReportMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof anchorThermalShiftReport>>, AnchorThermalShiftReportMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  anchorThermalShiftReport(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AnchorThermalShiftReportMutationResult = NonNullable<Awaited<ReturnType<typeof anchorThermalShiftReport>>>
+    export type AnchorThermalShiftReportMutationBody = BodyType<ThermalShiftAnchorInput>
+    export type AnchorThermalShiftReportMutationError = ErrorType<void>
+    export type AnchorThermalShiftReportMutationVariables = {data: BodyType<ThermalShiftAnchorInput>}
+
+    /**
+ * @summary Anchor the canonical SHA-256 report hash on Ethereum Sepolia
+ */
+export const useAnchorThermalShiftReport = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof anchorThermalShiftReport>>, TError,AnchorThermalShiftReportMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof anchorThermalShiftReport>>,
+        TError,
+        AnchorThermalShiftReportMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAnchorThermalShiftReportMutationOptions(options));
+    }
+
+export const getVerifyThermalShiftAnchorUrl = () => {
+
+
+
+
+  return `/api/anchor/verify`
+}
+
+/**
+ * @summary Verify an anchor against the current report and Sepolia transaction data
+ */
+export const verifyThermalShiftAnchor = async (thermalShiftAnchorVerifyInput: ThermalShiftAnchorVerifyInput, options?: Parameters<typeof customFetch>[1]): Promise<ThermalShiftAnchorVerification> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ThermalShiftAnchorVerification>(getVerifyThermalShiftAnchorUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(thermalShiftAnchorVerifyInput)
+  }
+);}
+
+
+
+
+
+export const getVerifyThermalShiftAnchorMutationKey = () => ['verifyThermalShiftAnchor'] as const;
+
+export const getVerifyThermalShiftAnchorMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyThermalShiftAnchor>>, TError,VerifyThermalShiftAnchorMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof verifyThermalShiftAnchor>>, TError,VerifyThermalShiftAnchorMutationVariables, TContext> => {
+
+const mutationKey = getVerifyThermalShiftAnchorMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof verifyThermalShiftAnchor>>, VerifyThermalShiftAnchorMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  verifyThermalShiftAnchor(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type VerifyThermalShiftAnchorMutationResult = NonNullable<Awaited<ReturnType<typeof verifyThermalShiftAnchor>>>
+    export type VerifyThermalShiftAnchorMutationBody = BodyType<ThermalShiftAnchorVerifyInput>
+    export type VerifyThermalShiftAnchorMutationError = ErrorType<void>
+    export type VerifyThermalShiftAnchorMutationVariables = {data: BodyType<ThermalShiftAnchorVerifyInput>}
+
+    /**
+ * @summary Verify an anchor against the current report and Sepolia transaction data
+ */
+export const useVerifyThermalShiftAnchor = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyThermalShiftAnchor>>, TError,VerifyThermalShiftAnchorMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof verifyThermalShiftAnchor>>,
+        TError,
+        VerifyThermalShiftAnchorMutationVariables,
+        TContext
+      > => {
+      return useMutation(getVerifyThermalShiftAnchorMutationOptions(options));
     }
 
