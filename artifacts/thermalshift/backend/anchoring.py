@@ -239,6 +239,7 @@ class SepoliaAnchorService:
             "chain_id": CHAIN_ID,
             "explorer_base_url": "https://sepolia.etherscan.io",
             "enabled": self.enabled,
+            "write_enabled": False,
             "configured": not any(
                 item in missing
                 for item in (

@@ -53,7 +53,7 @@ Because total cooling electricity is held constant, any modeled emissions differ
 
 Both series now require explicit interval starts, an IANA time-zone identifier, units, and source descriptions. The API validates that each series has 24 offset-aware timestamps at consecutive one-hour intervals and that tariff and grid-emissions intervals match in the same order. It rejects naive timestamps, invalid time-zone offsets, gaps, duplicates, and mismatched series instead of aligning by array position alone. Timestamp strings, units, and source descriptions are echoed into each hourly report and covered by the report hash.
 
-Tariff units must use an ISO currency code per kWh (for example `INR/kWh` or `EUR/kWh`). Grid-emissions values must be `kgCO2/kWh`; convert other source units explicitly before upload. No currency or emissions-unit conversion is inferred.
+Tariff units must use a supported active ISO 4217 alpha-3 currency code per kWh (for example `USD/kWh`, `INR/kWh`, or `EUR/kWh`). The backend validates codes against a bundled local allowlist based on the [ISO 4217 currency-code standard](https://www.iso.org/iso-4217-currency-codes.html); it does not perform network lookups. Grid-emissions values must be `kgCO2/kWh`; convert other source units explicitly before upload. No currency or emissions-unit conversion is inferred.
 
 The CSV import remains at `/api/import-csv` and still requires exactly 24 rows. Its columns are `hour`, `tariff_timestamp`, `baseline_kwh`, `tariff_per_kwh`, `grid_emissions_timestamp`, `grid_kgco2_per_kwh`, and `ambient_heat_gain_c`. The two timestamp columns on each row must refer to the same interval. The upload form collects shared time zone and each series' units and source. The `hour` field is a 0–23 row index; actual interval starts are represented by timestamps.
 
@@ -112,25 +112,100 @@ A match detects whether report content differs from the content represented by a
 
 ## Optional testnet hash anchor
 
-The optional integration uses **Ethereum Sepolia** (chain ID `11155111`). Ethereum’s network documentation recommends Sepolia for application development; Etherscan lists its chain ID and provides the linked public explorer ([Ethereum network guidance](https://ethereum.org/developers/docs/networks/), [Etherscan supported chains](https://docs.etherscan.io/supported-chains), [Sepolia explorer](https://sepolia.etherscan.io/)).
+The anchoring implementation targets **Ethereum Sepolia** (chain ID `11155111`). Ethereum’s network documentation recommends Sepolia for application development; Etherscan lists its chain ID and provides the linked public explorer ([Ethereum network guidance](https://ethereum.org/developers/docs/networks/), [Etherscan supported chains](https://docs.etherscan.io/supported-chains), [Sepolia explorer](https://sepolia.etherscan.io/)).
 
-There is no smart contract. The service creates a zero-value transaction from a dedicated Sepolia wallet to itself and places only the 32-byte report hash in transaction calldata. The destination is therefore the signer address. Anyone can inspect the transaction input on the explorer. This is a public timestamped inclusion of a hash, not a signature by the report author, trusted measurement provenance, validation of the optimization, or proof of energy/emissions savings.
+There is no smart contract. The service implementation can create a zero-value transaction from a dedicated Sepolia wallet to itself and place only the 32-byte report hash in transaction calldata. The destination is therefore the signer address. Anyone can inspect the transaction input on the explorer. This is a public timestamped inclusion of a hash, not a signature by the report author, trusted measurement provenance, validation of the optimization, or proof of energy/emissions savings.
 
-To enable it for a **private, controlled testnet demonstration**:
+**Public writes are disabled.** Both the API proxy and FastAPI backend reject `POST /api/anchor`, even when Sepolia credentials and `THERMALSHIFT_ANCHOR_ENABLED=true` are configured. The prototype has no authenticated caller identity to authorize spending the server-held key, so environment configuration alone cannot safely enable public writes. The status, report-hash lookup, and on-chain verification endpoints remain available.
 
-1. Add `SEPOLIA_RPC_URL` and `SEPOLIA_PRIVATE_KEY` as server-side Replit Secrets. Use a dedicated, disposable testnet wallet; never use a mainnet key.
-2. Set the non-secret environment variable `THERMALSHIFT_ANCHOR_ENABLED=true`.
-3. Fund that address with Sepolia test ETH from a faucet. The app checks the RPC chain and wallet balance before showing the integration as ready.
-4. Optionally set `THERMALSHIFT_ANCHOR_CONFIRMATIONS` (default: `2`) and `THERMALSHIFT_ANCHOR_DB_PATH` (default: `artifacts/thermalshift/backend/thermalshift_anchors.sqlite3`).
-5. Restart the FastAPI workflow, run an optimization, and submit the report hash from **Evidence & audit**.
-
-The server recomputes the report hash and rejects changed content before signing. The SQLite anchor index stores the report hash, network, sender/destination, transaction hash, confirmation state, and signed raw transaction for exact retry; it never stores the private key or returns the raw transaction. Repeating a report is idempotent and reuses the same signed transaction. A timeout during submission is marked `submission_unknown`, not “confirmed”; verify it on-chain before trying again. “Confirmed” is shown only after a successful receipt, matching transaction calldata, and the configured confirmation depth. The report JSON stays unchanged: anchoring metadata is stored separately.
-
-**Access-control limitation:** the current prototype does not authenticate callers of the anchor API. Keep `THERMALSHIFT_ANCHOR_ENABLED` false on any publicly accessible deployment until access controls and a shared durable transaction store are in place. The default SQLite file is suitable only for a single-instance controlled demo; multi-instance deployments need shared storage. Do not expose a funded signer to an anonymous public endpoint.
+The backend still validates the canonical report hash before returning the disabled-write response. The underlying service retains idempotent transaction storage and Sepolia verification, including chain-ID, receipt, calldata, and confirmation-depth checks; no public request can invoke its transaction-submission path. Its SQLite anchor index stores report hash, network, sender/destination, transaction hash, confirmation state, and signed raw transaction for exact retry; it never stores the private key or returns the raw transaction. The report JSON stays unchanged: anchoring metadata is stored separately.
 
 The Replit workspace currently has no Sepolia RPC URL or private-key secret configured, and no transaction has been submitted or confirmed. The dashboard reports that state instead of generating a fake transaction.
 
+## Render deployment (free resources)
+
+The recommended deployment uses a Render Static Site for the Vite frontend and
+a Render Free Python Web Service for FastAPI. The dashboard's API routes are
+implemented by FastAPI; Express is not needed as a public service in this
+arrangement. The Vite `/api` proxy is for local development only. In a
+production build, `VITE_API_BASE_URL` configures the generated API client to
+prepend the FastAPI service URL while retaining each `/api/...` endpoint path.
+If it is unset, API calls remain relative and continue to use the development
+proxy locally.
+
+Create the FastAPI Web Service first, then use its assigned HTTPS URL as the
+`VITE_API_BASE_URL` build-time environment variable on the Static Site. Do not
+include a path such as `/api`; a trailing slash is accepted and removed.
+
+| Setting | Frontend: Static Site | Backend: Free Python Web Service |
+| --- | --- | --- |
+| Repository | This repository | This repository |
+| Root directory | Repository root (leave unset) | Repository root (leave unset so Render finds `uv.lock`) |
+| Build command | `pnpm install --frozen-lockfile && PORT=5199 BASE_PATH=/ pnpm --filter @workspace/thermalshift run build` | `uv sync --frozen --no-dev` |
+| Publish directory / start command | Publish directory: `artifacts/thermalshift/dist/public` | `uv run --frozen --no-sync --directory artifacts/thermalshift/backend uvicorn main:app --host 0.0.0.0 --port $PORT` |
+| Environment | `VITE_API_BASE_URL=https://<actual-fastapi-service>.onrender.com` | Render supplies `PORT`; optionally set `THERMALSHIFT_ANCHOR_ENABLED=false` explicitly |
+| Health check | Static Sites do not use a Web Service health-check path | HTTP health check: `/api/health` |
+
+`VITE_API_BASE_URL` is embedded during the Static Site build, not read at
+browser runtime. Set it to the actual HTTPS URL Render assigns to the deployed
+FastAPI service before building or rebuilding the frontend. The build command's
+`PORT` and `BASE_PATH` values are needed by the current Vite configuration;
+`PORT` here is only for the build configuration, not a running static server.
+
+The Python service uses the root `pyproject.toml` and `uv.lock`; its start
+command runs Uvicorn from the FastAPI backend directory, binds to `0.0.0.0`,
+and listens on Render's `$PORT`. Its `/api/health` endpoint returns a
+successful health response. The normal optimization and report-hash workflow
+does not need blockchain credentials. Public anchor writes remain disabled;
+do not set signing keys or expect this deployment to submit transactions.
+
+Render Free Web Services spin down after 15 minutes without inbound traffic;
+the first request after that can take about a minute while the service starts.
+Free Web Services have ephemeral filesystems, so local files such as the
+SQLite anchor index are not durable and can be lost on spin-down, restart, or
+redeploy. Render's included free instance-hour budget is shared across the
+workspace. The Static Site does not use Web Service instance hours, but the
+backend does; review the current Render limits before relying on free-tier
+availability. A Render deployment has not yet been created or verified.
+
 ## Development checks
+
+### Run in GitHub Codespaces
+
+Start each service in its own terminal from the repository root. The Express
+API server listens on port `5000` as documented in the workspace operations
+guide; the FastAPI backend listens on `8000`. Vite proxies `/api` to Express
+without removing the `/api` prefix. Forward/open Vite's port `5199` in
+Codespaces.
+
+```sh
+# Terminal 1: FastAPI backend
+cd artifacts/thermalshift/backend
+PYTHONPATH="$PWD" uv run --project /workspaces/ThermalShift-ClimateChain \
+  uvicorn main:app --host 0.0.0.0 --port 8000
+```
+
+```sh
+# Terminal 2: Express API proxy
+PORT=5000 THERMALSHIFT_API_URL=http://127.0.0.1:8000 \
+  pnpm --filter @workspace/api-server run dev
+```
+
+```sh
+# Terminal 3: Vite frontend
+PORT=5199 BASE_PATH=/ \
+  pnpm --filter @workspace/thermalshift run dev
+```
+
+Check routing from the Codespaces terminal with:
+
+```sh
+curl -fsS http://127.0.0.1:5199/api/health
+```
+
+It should return the FastAPI health JSON through Vite and the Express proxy.
+CSV uploads accept up to 100,000 bytes; the Express JSON parser is bounded at
+256 KiB to accommodate that CSV plus JSON encoding and scenario metadata.
 
 From the repository root:
 

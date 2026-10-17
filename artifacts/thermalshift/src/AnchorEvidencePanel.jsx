@@ -84,15 +84,17 @@ export default function AnchorEvidencePanel({ report }) {
   };
 
   const missing = status?.missing_configuration ?? [];
-  const readiness = status?.ready
-    ? 'Ready'
-    : statusQuery.isLoading
-      ? 'Checking setup'
-      : status?.enabled && status?.network_available === false
-        ? 'RPC unavailable'
-        : status?.enabled && status?.configured
-          ? 'Needs test ETH'
-          : 'Not configured';
+  const readiness = status?.write_enabled === false
+    ? 'Writes disabled'
+    : status?.ready
+      ? 'Ready'
+      : statusQuery.isLoading
+        ? 'Checking setup'
+        : status?.enabled && status?.network_available === false
+          ? 'RPC unavailable'
+          : status?.enabled && status?.configured
+            ? 'Needs test ETH'
+            : 'Not configured';
 
   return (
     <section className="panel anchor-panel" aria-labelledby="anchor-title" data-testid="panel-testnet-anchor">
@@ -102,15 +104,14 @@ export default function AnchorEvidencePanel({ report }) {
           <h2 id="anchor-title">Public testnet anchor</h2>
           <p>Ethereum Sepolia · chain ID 11155111 · no contract deployed</p>
         </div>
-        <span className={`anchor-readiness ${status?.ready ? 'is-ready' : ''}`} data-testid="status-anchor-readiness">
+        <span className={`anchor-readiness ${status?.ready && status?.write_enabled !== false ? 'is-ready' : ''}`} data-testid="status-anchor-readiness">
           {readiness}
         </span>
       </div>
 
       <p className="anchor-description">
-        When enabled, ThermalShift sends a zero-value self-transaction containing only
-        this report’s SHA-256 hash. Re-submitting the same report reuses its stored
-        transaction instead of creating another anchor.
+        Public anchoring writes are disabled until caller authorization is implemented.
+        Status, lookup, and on-chain verification remain available.
       </p>
 
       {!reportHash && (
@@ -125,7 +126,7 @@ export default function AnchorEvidencePanel({ report }) {
         </div>
       )}
 
-      {missing.length > 0 && (
+      {status?.write_enabled === true && missing.length > 0 && (
         <div className="anchor-setup">
           <b>Setup still required</b>
           <ul>
@@ -146,7 +147,7 @@ export default function AnchorEvidencePanel({ report }) {
           className="primary-button"
           data-testid="button-anchor-report-hash"
           onClick={submitAnchor}
-          disabled={!reportHash || !status?.ready || anchorMutation.isPending}
+          disabled={!reportHash || status?.write_enabled !== true || !status?.ready || anchorMutation.isPending}
         >
           <Link2 size={16} />
           {anchorMutation.isPending ? 'Submitting…' : 'Anchor report hash'}

@@ -128,7 +128,7 @@ export default function ThermalShiftDashboard() {
   const metricCards = report ? [
     { label: 'Modelled emissions', value: `${fmt(report.optimized?.emissions_kgco2, 1)} kg`, change: `${fmt(report.change_pct?.emissions_reduction_pct, 1)}%`, key: 'emissions_reduction_pct', icon: Leaf, tone: 'green' },
     { label: 'Modelled energy cost', value: money(report.optimized?.cost, report.time_series_metadata?.tariff_unit), change: `${fmt(report.change_pct?.cost_reduction_pct, 1)}%`, key: 'cost_reduction_pct', icon: Zap, tone: 'blue' },
-    { label: 'Energy consumed', value: `${fmt(report.optimized?.energy_kwh, 1)} kWh`, change: `${fmt(report.change_pct?.energy_reduction_pct, 1)}%`, key: 'energy_reduction_pct', icon: Activity, tone: 'violet' },
+    { label: 'Cooling energy (fixed total)', value: `${fmt(report.optimized?.energy_kwh, 1)} kWh`, change: `${fmt(report.change_pct?.energy_reduction_pct, 1)}%`, key: 'energy_reduction_pct', icon: Activity, tone: 'violet' },
     { label: 'Peak load proxy', value: `${fmt(report.optimized?.peak_kw_proxy, 2)} kW`, change: `${fmt(report.change_pct?.peak_reduction_pct, 1)}%`, key: 'peak_reduction_pct', icon: Cloud, tone: 'amber' },
   ] : [];
   const pageTitle = view === 'overview' ? 'Make every cooling hour count.' : view === 'schedule' ? 'A smarter cooling schedule.' : 'Evidence with clear limits.';

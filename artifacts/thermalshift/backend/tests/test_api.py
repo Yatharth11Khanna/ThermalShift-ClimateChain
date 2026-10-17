@@ -220,6 +220,26 @@ def test_optimizer_rejects_noncanonical_series_units():
     assert "ISO currency code per kWh" in response.json()["detail"]
 
 
+@pytest.mark.parametrize("currency", ["USD", "INR"])
+def test_optimizer_accepts_supported_iso_4217_tariff_currency(currency):
+    scenario = main.demo_scenario().model_dump()
+    scenario["tariff_metadata"]["unit"] = f"{currency}/kWh"
+
+    response = client.post("/api/optimize", json={"scenario": scenario})
+
+    assert response.status_code == 200
+
+
+def test_optimizer_rejects_unknown_three_letter_tariff_currency():
+    scenario = main.demo_scenario().model_dump()
+    scenario["tariff_metadata"]["unit"] = "ZZZ/kWh"
+
+    response = client.post("/api/optimize", json={"scenario": scenario})
+
+    assert response.status_code == 422
+    assert "ISO currency code per kWh" in response.json()["detail"]
+
+
 def test_infeasible_schedule_is_returned_without_claiming_success():
     scenario = main.demo_scenario().model_dump()
     scenario["max_cooling_kwh_per_hour"] = 0.0

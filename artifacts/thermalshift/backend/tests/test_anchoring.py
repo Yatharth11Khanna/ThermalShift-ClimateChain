@@ -203,11 +203,27 @@ def test_status_reports_missing_configuration_without_exposing_secrets(tmp_path)
     assert status["network"] == "Ethereum Sepolia"
     assert status["chain_id"] == 11155111
     assert status["ready"] is False
+    assert status["write_enabled"] is False
     assert "SEPOLIA_RPC_URL" in status["missing_configuration"]
     assert "SEPOLIA_PRIVATE_KEY" in status["missing_configuration"]
     assert "THERMALSHIFT_ANCHOR_ENABLED=true" in status["missing_configuration"]
     assert "private_key" not in status
     assert TEST_PRIVATE_KEY not in json.dumps(status)
+
+
+def test_anchor_service_is_disabled_by_default(tmp_path, monkeypatch):
+    monkeypatch.delenv("THERMALSHIFT_ANCHOR_ENABLED", raising=False)
+    monkeypatch.delenv("SEPOLIA_RPC_URL", raising=False)
+    monkeypatch.delenv("SEPOLIA_PRIVATE_KEY", raising=False)
+
+    status = SepoliaAnchorService(
+        db_path=tmp_path / "anchors.sqlite3",
+    ).status()
+
+    assert status["enabled"] is False
+    assert status["write_enabled"] is False
+    assert status["ready"] is False
+    assert "THERMALSHIFT_ANCHOR_ENABLED=true" in status["missing_configuration"]
 
 
 def test_api_rejects_altered_report_hash_before_attempting_submission(monkeypatch):
@@ -244,9 +260,31 @@ def test_api_reports_anchor_setup_requirements_without_live_network():
     assert status.status_code == 200
     assert status.json()["network"] == "Ethereum Sepolia"
     assert status.json()["ready"] is False
+    assert status.json()["write_enabled"] is False
 
 
-def test_api_anchor_route_returns_not_configured_without_external_secrets():
+def test_anchor_lookup_and_verification_routes_remain_available(tmp_path, monkeypatch):
+    rpc = FakeSepoliaRPC()
+    service = make_service(tmp_path, rpc)
+    report = {"scenario": "test fixture"}
+    report_hash = main.canonical_report_hash(report)
+    record = service.anchor_report(report_hash)
+    monkeypatch.setattr(main, "anchor_service", service)
+    client = TestClient(main.app)
+
+    lookup = client.get(f"/api/anchor/report/{report_hash}")
+    verification = client.post(
+        "/api/anchor/verify",
+        json={"report": report, "transaction_hash": record["transaction_hash"]},
+    )
+
+    assert lookup.status_code == 200
+    assert lookup.json()["transaction_hash"] == record["transaction_hash"]
+    assert verification.status_code == 200
+    assert verification.json()["on_chain_transaction_matches"] is True
+
+
+def test_api_anchor_route_is_disabled_without_configuration():
     client = TestClient(main.app)
     scenario = main.demo_scenario()
     optimized = client.post(
@@ -269,5 +307,37 @@ def test_api_anchor_route_returns_not_configured_without_external_secrets():
     )
 
     assert response.status_code == 503
-    assert "SEPOLIA_RPC_URL" in response.json()["detail"]
+    assert response.json()["detail"] == (
+        "Public anchoring writes are disabled; status and verification remain available."
+    )
     assert main.canonical_report_hash(payload) == report["evidence"]["report_hash"]
+
+
+def test_public_anchor_write_is_disabled_even_when_server_is_configured(
+    tmp_path, monkeypatch
+):
+    rpc = FakeSepoliaRPC()
+    service = make_service(tmp_path, rpc)
+    monkeypatch.setattr(main, "anchor_service", service)
+    status = service.status()
+    assert status["ready"] is True
+    assert status["write_enabled"] is False
+    assert TEST_PRIVATE_KEY not in json.dumps(status)
+    assert "rpc.invalid" not in json.dumps(status)
+    client = TestClient(main.app)
+    report = {"scenario": "caller supplied"}
+    report_hash = main.canonical_report_hash(report)
+
+    response = client.post(
+        "/api/anchor",
+        json={"report": report, "report_hash": report_hash},
+    )
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == (
+        "Public anchoring writes are disabled; status and verification remain available."
+    )
+    assert TEST_PRIVATE_KEY not in response.text
+    assert "rpc.invalid" not in response.text
+    assert rpc.sent_raw_transactions == []
+    assert not service.db_path.exists()

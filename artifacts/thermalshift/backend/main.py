@@ -14,10 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from scipy.optimize import linprog
 from anchoring import (
-    AnchorNotConfigured,
     AnchorNotFound,
-    AnchorRPCRejected,
-    AnchorRPCUnavailable,
     SepoliaAnchorService,
 )
 
@@ -25,6 +22,21 @@ app = FastAPI(title="ThermalShift API", version="0.1.0", description="Carbon-awa
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 HOURS = list(range(24))
+
+# Active ISO 4217 alpha-3 currencies. Update this local list as ISO 4217 changes.
+ISO_4217_CURRENCY_CODES = frozenset(
+    """
+    AED AFN ALL AMD AOA ARS AUD AWG AZN BAM BBD BDT BHD BIF BMD BND BOB BRL
+    BSD BTN BWP BYN BZD CAD CDF CHF CLP CNY COP CRC CUP CVE CZK DJF DKK
+    DOP DZD EGP ERN ETB EUR FJD FKP GBP GEL GHS GIP GMD GNF GTQ GYD HKD HNL
+    HTG HUF IDR ILS INR IQD IRR ISK JMD JOD JPY KES KGS KHR KMF KPW KRW KWD
+    KYD KZT LAK LBP LKR LRD LSL LYD MAD MDL MGA MKD MMK MNT MOP MRU MUR MVR
+    MWK MXN MYR MZN NAD NGN NIO NOK NPR NZD OMR PAB PEN PGK PHP PKR PLN PYG
+    QAR RON RSD RUB RWF SAR SBD SCR SDG SEK SGD SHP SLE SOS SRD SSP STN SYP
+    SZL THB TJS TMT TND TOP TRY TTD TWD TZS UAH UGX USD UYU UZS VED VES VND
+    VUV WST XAF XCD XCG XOF XPF YER ZAR ZMW ZWG
+    """.split()
+)
 
 class HourlySeriesMetadata(BaseModel):
     timestamps: List[str] = Field(min_length=24, max_length=24)
@@ -169,7 +181,12 @@ def validate_time_series_metadata(
     except (ZoneInfoNotFoundError, ValueError):
         raise HTTPException(422, "Time zone must be a valid IANA time-zone name.")
 
-    if not re.fullmatch(r"[A-Z]{3}/kWh", tariff_metadata.unit):
+    tariff_currency = tariff_metadata.unit.removesuffix("/kWh")
+    if (
+        not re.fullmatch(r"[A-Z]{3}", tariff_currency)
+        or tariff_currency not in ISO_4217_CURRENCY_CODES
+        or tariff_metadata.unit != f"{tariff_currency}/kWh"
+    ):
         raise HTTPException(
             422,
             "Tariff unit must be an ISO currency code per kWh, for example INR/kWh or EUR/kWh.",
@@ -586,14 +603,10 @@ def anchor_report(payload: AnchorReportRequest):
             409,
             "Submitted report hash does not match the canonical report contents.",
         )
-    try:
-        return anchor_service.anchor_report(calculated_hash)
-    except AnchorNotConfigured as exc:
-        raise HTTPException(503, str(exc)) from exc
-    except (AnchorRPCUnavailable, AnchorRPCRejected) as exc:
-        raise HTTPException(502, str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(422, str(exc)) from exc
+    raise HTTPException(
+        503,
+        "Public anchoring writes are disabled; status and verification remain available.",
+    )
 
 
 @app.post("/api/anchor/verify")

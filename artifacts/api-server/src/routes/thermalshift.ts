@@ -55,8 +55,11 @@ router.get("/anchor/report/:reportHash", (req, res) => {
     `anchor/report/${encodeURIComponent(reportHash ?? "")}`,
   );
 });
-router.post("/anchor", (req, res) =>
-  forwardToThermalShift(req, res, "anchor"),
+router.post("/anchor", (_req, res) =>
+  res.status(503).json({
+    detail:
+      "Public anchoring writes are disabled; status and verification remain available.",
+  }),
 );
 router.post("/anchor/verify", (req, res) =>
   forwardToThermalShift(req, res, "anchor/verify"),
