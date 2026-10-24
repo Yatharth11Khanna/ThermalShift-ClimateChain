@@ -70,6 +70,27 @@ paths:
                 $ref: "#/components/schemas/ThermalShiftReport"
         "422":
           description: Invalid scenario data
+  /compare-scenarios:
+    post:
+      operationId: compareThermalShiftScenarios
+      tags: [thermalshift]
+      summary: Compare baseline, cost-optimized, and carbon-aware cooling schedules
+      description: Uses the supplied tariff and grid-intensity arrays as separate objectives. All optimized schedules preserve baseline energy and use the same hourly cooling and temperature constraints; results are illustrative model estimates.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ThermalShiftOptimizeInput"
+      responses:
+        "200":
+          description: Three scenario schedules with metrics and per-scenario feasibility
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ThermalShiftScenarioComparison"
+        "422":
+          description: Invalid scenario data
   /verify-hash:
     post:
       operationId: verifyThermalShiftReportHash
@@ -317,6 +338,114 @@ components:
         evidence:
           $ref: "#/components/schemas/ThermalShiftEvidence"
       additionalProperties: true
+    ThermalShiftScenarioComparison:
+      type: object
+      properties:
+        scenario:
+          type: string
+        model_output_classification:
+          type: string
+          enum: [illustrative_model_estimate]
+        input_provenance:
+          type: string
+          enum: [synthetic_demo, user_supplied_unverified]
+        time_series_metadata:
+          $ref: "#/components/schemas/ThermalShiftReportTimeSeriesMetadata"
+        objective_functions:
+          type: object
+          properties:
+            baseline: { type: string }
+            cost_optimized: { type: string }
+            carbon_aware: { type: string }
+          required: [baseline, cost_optimized, carbon_aware]
+        constraints:
+          type: object
+          properties:
+            energy_budget_kwh: { type: number }
+            energy_budget_rule: { type: string }
+            min_temp_c: { type: number }
+            max_temp_c: { type: number }
+            max_cooling_kwh_per_hour: { type: number }
+            temperature_model: { type: string }
+          required:
+            - energy_budget_kwh
+            - energy_budget_rule
+            - min_temp_c
+            - max_temp_c
+            - max_cooling_kwh_per_hour
+            - temperature_model
+        model_notice:
+          type: string
+        scenarios:
+          type: object
+          properties:
+            baseline:
+              $ref: "#/components/schemas/ThermalShiftComparisonScenario"
+            cost_optimized:
+              $ref: "#/components/schemas/ThermalShiftComparisonScenario"
+            carbon_aware:
+              $ref: "#/components/schemas/ThermalShiftComparisonScenario"
+          required: [baseline, cost_optimized, carbon_aware]
+      required:
+        - scenario
+        - model_output_classification
+        - input_provenance
+        - time_series_metadata
+        - objective_functions
+        - constraints
+        - model_notice
+        - scenarios
+    ThermalShiftComparisonScenario:
+      type: object
+      properties:
+        feasible:
+          type: boolean
+        metrics:
+          oneOf:
+            - $ref: "#/components/schemas/ThermalShiftComparisonMetrics"
+            - type: "null"
+        hourly:
+          type: array
+          items:
+            $ref: "#/components/schemas/ThermalShiftComparisonHourly"
+        warnings:
+          type: array
+          items: { type: string }
+        solver_message:
+          type: [string, "null"]
+      required: [feasible, metrics, hourly, warnings, solver_message]
+    ThermalShiftComparisonMetrics:
+      type: object
+      properties:
+        energy_kwh: { type: number }
+        electricity_cost: { type: number }
+        electricity_cost_unit: { type: string }
+        modeled_emissions_kgco2: { type: number }
+        peak_hourly_cooling_kwh: { type: number }
+        peak_kw_proxy: { type: number }
+      required:
+        - energy_kwh
+        - electricity_cost
+        - electricity_cost_unit
+        - modeled_emissions_kgco2
+        - peak_hourly_cooling_kwh
+        - peak_kw_proxy
+    ThermalShiftComparisonHourly:
+      type: object
+      properties:
+        hour: { type: integer, minimum: 0, maximum: 23 }
+        timestamp: { type: string, format: date-time }
+        cooling_kwh: { type: number }
+        modeled_temperature_c: { type: number }
+        tariff_per_kwh: { type: number }
+        grid_kgco2_per_kwh: { type: number }
+      required:
+        - hour
+        - timestamp
+        - cooling_kwh
+        - modeled_temperature_c
+        - tariff_per_kwh
+        - grid_kgco2_per_kwh
     ThermalShiftEvidence:
       type: object
       properties:

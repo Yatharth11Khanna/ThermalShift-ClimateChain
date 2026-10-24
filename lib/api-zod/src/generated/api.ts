@@ -219,6 +219,185 @@ export const OptimizeThermalShiftResponse = zod.object({
 
 
 /**
+ * Uses the supplied tariff and grid-intensity arrays as separate objectives. All optimized schedules preserve baseline energy and use the same hourly cooling and temperature constraints; results are illustrative model estimates.
+ * @summary Compare baseline, cost-optimized, and carbon-aware cooling schedules
+ */
+export const compareThermalShiftScenariosBodyScenarioInputProvenanceDefault = `user_supplied_unverified`;
+export const compareThermalShiftScenariosBodyScenarioTariffMetadataTimestampsMin = 24;
+export const compareThermalShiftScenariosBodyScenarioTariffMetadataTimestampsMax = 24;
+
+
+
+export const compareThermalShiftScenariosBodyScenarioTariffMetadataSourceMax = 500;
+
+export const compareThermalShiftScenariosBodyScenarioGridEmissionsMetadataTimestampsMin = 24;
+export const compareThermalShiftScenariosBodyScenarioGridEmissionsMetadataTimestampsMax = 24;
+
+
+
+export const compareThermalShiftScenariosBodyScenarioGridEmissionsMetadataSourceMax = 500;
+
+export const compareThermalShiftScenariosBodyScenarioBaselineKwhItemMin = 0;
+
+export const compareThermalShiftScenariosBodyScenarioBaselineKwhMin = 24;
+export const compareThermalShiftScenariosBodyScenarioBaselineKwhMax = 24;
+
+export const compareThermalShiftScenariosBodyScenarioTariffPerKwhItemMin = 0;
+
+export const compareThermalShiftScenariosBodyScenarioTariffPerKwhMin = 24;
+export const compareThermalShiftScenariosBodyScenarioTariffPerKwhMax = 24;
+
+export const compareThermalShiftScenariosBodyScenarioGridKgco2PerKwhItemMin = 0;
+
+export const compareThermalShiftScenariosBodyScenarioGridKgco2PerKwhMin = 24;
+export const compareThermalShiftScenariosBodyScenarioGridKgco2PerKwhMax = 24;
+
+export const compareThermalShiftScenariosBodyScenarioAmbientHeatGainCItemMin = 0;
+
+export const compareThermalShiftScenariosBodyScenarioAmbientHeatGainCMin = 24;
+export const compareThermalShiftScenariosBodyScenarioAmbientHeatGainCMax = 24;
+
+
+
+export const CompareThermalShiftScenariosBody = zod.object({
+  "scenario": zod.object({
+  "name": zod.string(),
+  "input_provenance": zod.enum(['synthetic_demo', 'user_supplied_unverified']).default(compareThermalShiftScenariosBodyScenarioInputProvenanceDefault).describe('Caller-supplied label only; the API does not authenticate source records.'),
+  "tariff_metadata": zod.object({
+  "timestamps": zod.array(zod.coerce.date()).min(compareThermalShiftScenariosBodyScenarioTariffMetadataTimestampsMin).max(compareThermalShiftScenariosBodyScenarioTariffMetadataTimestampsMax).describe('ISO 8601 interval starts with explicit offsets; exactly 24 consecutive hourly timestamps.'),
+  "timezone": zod.string().min(1).describe('IANA time-zone identifier used to validate the supplied timestamp offsets.'),
+  "unit": zod.string().min(1),
+  "source": zod.string().min(1).max(compareThermalShiftScenariosBodyScenarioTariffMetadataSourceMax).describe('Caller-supplied source name or URL; not independently authenticated.')
+}),
+  "grid_emissions_metadata": zod.object({
+  "timestamps": zod.array(zod.coerce.date()).min(compareThermalShiftScenariosBodyScenarioGridEmissionsMetadataTimestampsMin).max(compareThermalShiftScenariosBodyScenarioGridEmissionsMetadataTimestampsMax).describe('ISO 8601 interval starts with explicit offsets; exactly 24 consecutive hourly timestamps.'),
+  "timezone": zod.string().min(1).describe('IANA time-zone identifier used to validate the supplied timestamp offsets.'),
+  "unit": zod.string().min(1),
+  "source": zod.string().min(1).max(compareThermalShiftScenariosBodyScenarioGridEmissionsMetadataSourceMax).describe('Caller-supplied source name or URL; not independently authenticated.')
+}),
+  "baseline_kwh": zod.array(zod.number().min(compareThermalShiftScenariosBodyScenarioBaselineKwhItemMin)).min(compareThermalShiftScenariosBodyScenarioBaselineKwhMin).max(compareThermalShiftScenariosBodyScenarioBaselineKwhMax),
+  "tariff_per_kwh": zod.array(zod.number().min(compareThermalShiftScenariosBodyScenarioTariffPerKwhItemMin)).min(compareThermalShiftScenariosBodyScenarioTariffPerKwhMin).max(compareThermalShiftScenariosBodyScenarioTariffPerKwhMax),
+  "grid_kgco2_per_kwh": zod.array(zod.number().min(compareThermalShiftScenariosBodyScenarioGridKgco2PerKwhItemMin)).min(compareThermalShiftScenariosBodyScenarioGridKgco2PerKwhMin).max(compareThermalShiftScenariosBodyScenarioGridKgco2PerKwhMax),
+  "ambient_heat_gain_c": zod.array(zod.number().min(compareThermalShiftScenariosBodyScenarioAmbientHeatGainCItemMin)).min(compareThermalShiftScenariosBodyScenarioAmbientHeatGainCMin).max(compareThermalShiftScenariosBodyScenarioAmbientHeatGainCMax),
+  "initial_temp_c": zod.number().optional(),
+  "min_temp_c": zod.number().optional(),
+  "max_temp_c": zod.number().optional(),
+  "cooling_effect_c_per_kwh": zod.number().optional(),
+  "max_cooling_kwh_per_hour": zod.number().optional(),
+  "cost_weight": zod.number().optional(),
+  "carbon_weight": zod.number().optional()
+})
+})
+
+export const compareThermalShiftScenariosResponseScenariosBaselineHourlyItemHourMin = 0;
+export const compareThermalShiftScenariosResponseScenariosBaselineHourlyItemHourMax = 23;
+
+export const compareThermalShiftScenariosResponseScenariosCostOptimizedHourlyItemHourMin = 0;
+export const compareThermalShiftScenariosResponseScenariosCostOptimizedHourlyItemHourMax = 23;
+
+export const compareThermalShiftScenariosResponseScenariosCarbonAwareHourlyItemHourMin = 0;
+export const compareThermalShiftScenariosResponseScenariosCarbonAwareHourlyItemHourMax = 23;
+
+
+
+export const CompareThermalShiftScenariosResponse = zod.object({
+  "scenario": zod.string(),
+  "model_output_classification": zod.enum(['illustrative_model_estimate']),
+  "input_provenance": zod.enum(['synthetic_demo', 'user_supplied_unverified']),
+  "time_series_metadata": zod.object({
+  "timezone": zod.string(),
+  "tariff_unit": zod.string(),
+  "tariff_source": zod.string(),
+  "grid_emissions_unit": zod.string(),
+  "grid_emissions_source": zod.string(),
+  "interval_count": zod.literal(24),
+  "first_interval_start": zod.coerce.date(),
+  "last_interval_start": zod.coerce.date(),
+  "source_metadata_notice": zod.string()
+}),
+  "objective_functions": zod.object({
+  "baseline": zod.string(),
+  "cost_optimized": zod.string(),
+  "carbon_aware": zod.string()
+}),
+  "constraints": zod.object({
+  "energy_budget_kwh": zod.number(),
+  "energy_budget_rule": zod.string(),
+  "min_temp_c": zod.number(),
+  "max_temp_c": zod.number(),
+  "max_cooling_kwh_per_hour": zod.number(),
+  "temperature_model": zod.string()
+}),
+  "model_notice": zod.string(),
+  "scenarios": zod.object({
+  "baseline": zod.object({
+  "feasible": zod.boolean(),
+  "metrics": zod.union([zod.object({
+  "energy_kwh": zod.number(),
+  "electricity_cost": zod.number(),
+  "electricity_cost_unit": zod.string(),
+  "modeled_emissions_kgco2": zod.number(),
+  "peak_hourly_cooling_kwh": zod.number(),
+  "peak_kw_proxy": zod.number()
+}),zod.null()]),
+  "hourly": zod.array(zod.object({
+  "hour": zod.number().int().min(compareThermalShiftScenariosResponseScenariosBaselineHourlyItemHourMin).max(compareThermalShiftScenariosResponseScenariosBaselineHourlyItemHourMax),
+  "timestamp": zod.coerce.date(),
+  "cooling_kwh": zod.number(),
+  "modeled_temperature_c": zod.number(),
+  "tariff_per_kwh": zod.number(),
+  "grid_kgco2_per_kwh": zod.number()
+})),
+  "warnings": zod.array(zod.string()),
+  "solver_message": zod.string().nullable()
+}),
+  "cost_optimized": zod.object({
+  "feasible": zod.boolean(),
+  "metrics": zod.union([zod.object({
+  "energy_kwh": zod.number(),
+  "electricity_cost": zod.number(),
+  "electricity_cost_unit": zod.string(),
+  "modeled_emissions_kgco2": zod.number(),
+  "peak_hourly_cooling_kwh": zod.number(),
+  "peak_kw_proxy": zod.number()
+}),zod.null()]),
+  "hourly": zod.array(zod.object({
+  "hour": zod.number().int().min(compareThermalShiftScenariosResponseScenariosCostOptimizedHourlyItemHourMin).max(compareThermalShiftScenariosResponseScenariosCostOptimizedHourlyItemHourMax),
+  "timestamp": zod.coerce.date(),
+  "cooling_kwh": zod.number(),
+  "modeled_temperature_c": zod.number(),
+  "tariff_per_kwh": zod.number(),
+  "grid_kgco2_per_kwh": zod.number()
+})),
+  "warnings": zod.array(zod.string()),
+  "solver_message": zod.string().nullable()
+}),
+  "carbon_aware": zod.object({
+  "feasible": zod.boolean(),
+  "metrics": zod.union([zod.object({
+  "energy_kwh": zod.number(),
+  "electricity_cost": zod.number(),
+  "electricity_cost_unit": zod.string(),
+  "modeled_emissions_kgco2": zod.number(),
+  "peak_hourly_cooling_kwh": zod.number(),
+  "peak_kw_proxy": zod.number()
+}),zod.null()]),
+  "hourly": zod.array(zod.object({
+  "hour": zod.number().int().min(compareThermalShiftScenariosResponseScenariosCarbonAwareHourlyItemHourMin).max(compareThermalShiftScenariosResponseScenariosCarbonAwareHourlyItemHourMax),
+  "timestamp": zod.coerce.date(),
+  "cooling_kwh": zod.number(),
+  "modeled_temperature_c": zod.number(),
+  "tariff_per_kwh": zod.number(),
+  "grid_kgco2_per_kwh": zod.number()
+})),
+  "warnings": zod.array(zod.string()),
+  "solver_message": zod.string().nullable()
+})
+})
+})
+
+
+/**
  * @summary Verify a report's local SHA-256 evidence hash
  */
 

@@ -20,6 +20,24 @@ sum(x) = sum(baseline_kwh)
 
 The fixed-energy equality preserves the baseline's 24-hour electricity budget. It means this model cannot claim total kWh savings. The objective combines normalized hourly tariff and grid-emissions-intensity terms using the configured weights, plus a peak-load proxy penalty with coefficient `4 / max_cooling_kwh_per_hour`. That fixed peak term can materially affect the schedule relative to the normalized cost/emissions terms. `peak_kw_proxy` is the maximum hourly kWh value, interpreted as an average kW proxy for one-hour intervals; it is not a demand-charge or market-settlement calculation.
 
+## Climate scenario comparison API
+
+`POST /api/compare-scenarios` accepts the same scenario input as `/api/optimize` and returns three independently evaluated schedules: the submitted baseline, a cost-optimized schedule, and a carbon-aware schedule. This endpoint does not use the legacy cost/carbon weights or peak penalty.
+
+- **Baseline:** evaluates the submitted hourly cooling electricity without changing it. Its energy, cost, emissions, and peak are calculated from the supplied arrays. The baseline is marked infeasible and includes warnings if it violates an hourly cooling cap or modeled temperature bound; it is never relabeled as optimized.
+- **Cost-optimized:** minimizes `sum(tariff_per_kwh[h] * cooling_kwh[h])` using the supplied hourly tariff values. Grid emissions are calculated and reported independently, not included in this objective.
+- **Carbon-aware:** minimizes `sum(grid_kgco2_per_kwh[h] * cooling_kwh[h])` using the supplied hourly grid-intensity values. Electricity cost is calculated and reported independently, not included in this objective. No emissions factors are invented or inferred.
+
+Both optimized schedules use the same linear temperature-state equations and configured end-of-hour bounds, the same non-negative hourly electrical-input cap, and the exact baseline total-energy equality. The response includes each schedule's feasibility, constraint warnings, hourly electricity and modeled temperature, total energy, total cost, total modeled emissions, and peak hourly cooling electricity. If a solver cannot produce a feasible schedule, that scenario has `feasible: false`, no hourly schedule, and `metrics: null`; the endpoint does not substitute the baseline. The endpoint omits run-specific timestamps so identical inputs produce deterministic comparison content on the same solver/runtime.
+
+These are model estimates only. The fixed-energy model cannot claim kWh savings; modeled emissions differences arise only from rescheduling against the supplied time-varying grid-intensity series. Inputs and model parameters are not independently verified or calibrated, and outputs do not establish measured or guaranteed real-world savings. The existing `/api/optimize` endpoint and its weighted objective remain unchanged for the dashboard's current workflow.
+
+### Dashboard workflow
+
+Open **Climate Scenario Lab** in the dashboard sidebar. It uses the active scenario: the built-in synthetic demo by default, or the most recently imported user-supplied CSV. Select **Run comparison** to submit that scenario to `POST /api/compare-scenarios`. The dashboard presents baseline, cost-optimized, and carbon-optimized metrics, relative cost/emissions changes, feasibility warnings, hourly electricity, and modeled temperature. Infeasible optimized schedules do not appear as successful results or chart lines. A zero-valued baseline is reported as an absolute difference with percentage change unavailable.
+
+Manual acceptance check: run the lab once with the demo and confirm all three cards and both charts appear; inspect that cost and carbon optimization have separate labels and baseline deltas; verify the energy totals match the baseline and that feasibility status is honored. Then import a 24-row CSV and rerun to confirm it uses the imported scenario. For a failure-state check, submit a scenario known to be infeasible (for example, set maximum hourly cooling below the fixed total-energy budget divided by 24) and confirm optimized cards show `Infeasible`, no optimized metric values are displayed, and no optimized chart line is presented. All values remain illustrative model estimates.
+
 ### What the model represents
 
 - A single aggregate cooling-electricity value and a single scalar temperature state for each one-hour interval.

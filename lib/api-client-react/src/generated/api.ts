@@ -33,7 +33,8 @@ import type {
   ThermalShiftHealth,
   ThermalShiftOptimizeInput,
   ThermalShiftReport,
-  ThermalShiftScenario
+  ThermalShiftScenario,
+  ThermalShiftScenarioComparison
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -381,6 +382,95 @@ export const useOptimizeThermalShift = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getOptimizeThermalShiftMutationOptions(options));
+    }
+
+export const getCompareThermalShiftScenariosUrl = () => {
+
+
+
+
+  return `/api/compare-scenarios`
+}
+
+/**
+ * Uses the supplied tariff and grid-intensity arrays as separate objectives. All optimized schedules preserve baseline energy and use the same hourly cooling and temperature constraints; results are illustrative model estimates.
+ * @summary Compare baseline, cost-optimized, and carbon-aware cooling schedules
+ */
+export const compareThermalShiftScenarios = async (thermalShiftOptimizeInput: ThermalShiftOptimizeInput, options?: Parameters<typeof customFetch>[1]): Promise<ThermalShiftScenarioComparison> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ThermalShiftScenarioComparison>(getCompareThermalShiftScenariosUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(thermalShiftOptimizeInput)
+  }
+);}
+
+
+
+
+
+export const getCompareThermalShiftScenariosMutationKey = () => ['compareThermalShiftScenarios'] as const;
+
+export const getCompareThermalShiftScenariosMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof compareThermalShiftScenarios>>, TError,CompareThermalShiftScenariosMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof compareThermalShiftScenarios>>, TError,CompareThermalShiftScenariosMutationVariables, TContext> => {
+
+const mutationKey = getCompareThermalShiftScenariosMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof compareThermalShiftScenarios>>, CompareThermalShiftScenariosMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  compareThermalShiftScenarios(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CompareThermalShiftScenariosMutationResult = NonNullable<Awaited<ReturnType<typeof compareThermalShiftScenarios>>>
+    export type CompareThermalShiftScenariosMutationBody = BodyType<ThermalShiftOptimizeInput>
+    export type CompareThermalShiftScenariosMutationError = ErrorType<void>
+    export type CompareThermalShiftScenariosMutationVariables = {data: BodyType<ThermalShiftOptimizeInput>}
+
+    /**
+ * @summary Compare baseline, cost-optimized, and carbon-aware cooling schedules
+ */
+export const useCompareThermalShiftScenarios = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof compareThermalShiftScenarios>>, TError,CompareThermalShiftScenariosMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof compareThermalShiftScenarios>>,
+        TError,
+        CompareThermalShiftScenariosMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCompareThermalShiftScenariosMutationOptions(options));
     }
 
 export const getVerifyThermalShiftReportHashUrl = () => {

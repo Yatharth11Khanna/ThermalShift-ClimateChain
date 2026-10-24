@@ -367,6 +367,151 @@ def test_constant_grid_intensity_cannot_produce_modeled_emissions_reduction():
     assert report["change_pct"]["emissions_reduction_pct"] == pytest.approx(0.0, abs=1e-6)
 
 
+def test_scenario_comparison_reports_separate_objectives_and_consistent_metrics():
+    scenario_values = main.demo_scenario().model_dump()
+    scenario_values.update(
+        {
+            "baseline_kwh": [0.2] * 24,
+            "tariff_per_kwh": [1.0] * 12 + [10.0] * 12,
+            "grid_kgco2_per_kwh": [1.0] * 12 + [0.1] * 12,
+            "ambient_heat_gain_c": [0.0] * 24,
+            "initial_temp_c": 3.0,
+            "min_temp_c": 2.0,
+            "max_temp_c": 4.0,
+            "cooling_effect_c_per_kwh": 0.1,
+            "max_cooling_kwh_per_hour": 0.6,
+            "cost_weight": 0.0,
+            "carbon_weight": 0.0,
+        }
+    )
+    scenario = main.Scenario.model_validate(scenario_values)
+    response = client.post(
+        "/api/compare-scenarios",
+        json={"scenario": scenario.model_dump()},
+    )
+
+    assert response.status_code == 200
+    report = response.json()
+    assert report["model_output_classification"] == "illustrative_model_estimate"
+    assert set(report["scenarios"]) == {"baseline", "cost_optimized", "carbon_aware"}
+    assert "Minimize sum(tariff_per_kwh[h] * cooling_kwh[h])" in report["objective_functions"]["cost_optimized"]
+    assert "Minimize sum(grid_kgco2_per_kwh[h] * cooling_kwh[h])" in report["objective_functions"]["carbon_aware"]
+    assert "not part of this objective" in report["objective_functions"]["cost_optimized"]
+    assert "not part of this objective" in report["objective_functions"]["carbon_aware"]
+
+    baseline_cost = report["scenarios"]["baseline"]["metrics"]["electricity_cost"]
+    baseline_emissions = report["scenarios"]["baseline"]["metrics"]["modeled_emissions_kgco2"]
+    for name in ("baseline", "cost_optimized", "carbon_aware"):
+        result = report["scenarios"][name]
+        assert result["feasible"] is True
+        assert result["warnings"] == []
+        hourly = result["hourly"]
+        loads = scenario.baseline_kwh if name == "baseline" else [row["cooling_kwh"] for row in hourly]
+        if name == "baseline":
+            assert [row["cooling_kwh"] for row in hourly] == pytest.approx(scenario.baseline_kwh)
+        else:
+            assert report["constraints"]["energy_budget_rule"]
+        metrics = result["metrics"]
+        assert metrics["energy_kwh"] == pytest.approx(sum(loads), abs=1e-6)
+        assert metrics["electricity_cost"] == pytest.approx(
+            sum(row["cooling_kwh"] * scenario.tariff_per_kwh[row["hour"]] for row in hourly),
+            abs=1e-6,
+        )
+        assert metrics["modeled_emissions_kgco2"] == pytest.approx(
+            sum(row["cooling_kwh"] * scenario.grid_kgco2_per_kwh[row["hour"]] for row in hourly),
+            abs=1e-6,
+        )
+        assert metrics["peak_hourly_cooling_kwh"] == pytest.approx(max(loads), abs=1e-6)
+        assert sum(loads) == pytest.approx(sum(scenario.baseline_kwh), abs=1e-5)
+        assert all(-1e-6 <= load <= scenario.max_cooling_kwh_per_hour + 1e-6 for load in loads)
+        assert all(
+            scenario.min_temp_c - 1e-6 <= row["modeled_temperature_c"] <= scenario.max_temp_c + 1e-6
+            for row in hourly
+        )
+        assert all(row["timestamp"] == timestamp_for_hour(row["hour"]) for row in hourly)
+
+    assert report["scenarios"]["cost_optimized"]["metrics"]["electricity_cost"] <= baseline_cost + 1e-6
+    assert report["scenarios"]["carbon_aware"]["metrics"]["modeled_emissions_kgco2"] <= baseline_emissions + 1e-6
+    assert (
+        report["scenarios"]["cost_optimized"]["metrics"]["electricity_cost"]
+        < report["scenarios"]["carbon_aware"]["metrics"]["electricity_cost"]
+    )
+    assert (
+        report["scenarios"]["carbon_aware"]["metrics"]["modeled_emissions_kgco2"]
+        < report["scenarios"]["cost_optimized"]["metrics"]["modeled_emissions_kgco2"]
+    )
+
+
+def test_scenario_comparison_reports_infeasibility_without_fabricating_schedules():
+    scenario = main.demo_scenario().model_dump()
+    scenario["max_cooling_kwh_per_hour"] = 0.2
+
+    response = client.post("/api/compare-scenarios", json={"scenario": scenario})
+
+    assert response.status_code == 200
+    results = response.json()["scenarios"]
+    assert results["baseline"]["feasible"] is False
+    assert any("Hourly cooling cap" in warning for warning in results["baseline"]["warnings"])
+    for name in ("cost_optimized", "carbon_aware"):
+        assert results[name]["feasible"] is False
+        assert results[name]["metrics"] is None
+        assert results[name]["hourly"] == []
+        assert results[name]["warnings"]
+        assert results[name]["solver_message"]
+
+
+@pytest.mark.parametrize(
+    ("field", "change", "expected_detail"),
+    [
+        ("tariff_per_kwh", "missing", "Field required"),
+        ("tariff_per_kwh", "non_finite", "finite"),
+        ("grid_kgco2_per_kwh", "missing", "Field required"),
+        ("grid_kgco2_per_kwh", "negative", "non-negative"),
+        ("grid_kgco2_per_kwh", "non_finite", "finite"),
+    ],
+)
+def test_scenario_comparison_rejects_missing_or_invalid_objective_series(
+    field, change, expected_detail
+):
+    scenario = main.demo_scenario().model_dump()
+    if change == "missing":
+        scenario.pop(field)
+    elif change == "non_finite":
+        scenario[field][0] = "NaN"
+    elif change == "negative":
+        scenario[field][0] = -0.1
+
+    response = client.post("/api/compare-scenarios", json={"scenario": scenario})
+
+    assert response.status_code == 422
+    assert expected_detail.lower() in response.text.lower()
+
+
+def test_scenario_comparison_is_deterministic_for_identical_inputs():
+    payload = {"scenario": main.demo_scenario().model_dump()}
+
+    first = client.post("/api/compare-scenarios", json=payload)
+    second = client.post("/api/compare-scenarios", json=payload)
+
+    assert first.status_code == second.status_code == 200
+    assert first.json() == second.json()
+
+
+def test_scenario_comparison_flags_baseline_temperature_violations():
+    scenario = main.demo_scenario().model_dump()
+    scenario["ambient_heat_gain_c"][0] = 3.0
+
+    response = client.post("/api/compare-scenarios", json={"scenario": scenario})
+
+    assert response.status_code == 200
+    baseline = response.json()["scenarios"]["baseline"]
+    assert baseline["feasible"] is False
+    assert any(
+        "Configured temperature bounds violated at intervals: 0" in warning
+        for warning in baseline["warnings"]
+    )
+
+
 def test_benchmark_scenarios_cover_flexibility_no_benefit_and_infeasibility():
     cases = {item["id"]: item for item in benchmark_scenarios()}
 

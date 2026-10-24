@@ -141,6 +141,34 @@ test("maximum-size CSV upload passes through the API proxy", async () => {
   }
 });
 
+test("scenario comparison passes through the API proxy", async () => {
+  const originalFetch = globalThis.fetch;
+  let forwardedRequest;
+  globalThis.fetch = async (input, init) => {
+    forwardedRequest = {
+      url: String(input),
+      method: init.method,
+      body: JSON.parse(init.body),
+    };
+    return new Response(JSON.stringify({ scenarios: {} }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  };
+
+  try {
+    const payload = { scenario: { name: "comparison fixture" } };
+    const response = await postJson("/api/compare-scenarios", payload);
+
+    assert.equal(response.status, 200);
+    assert.equal(forwardedRequest.url, "http://127.0.0.1:8000/api/compare-scenarios");
+    assert.equal(forwardedRequest.method, "POST");
+    assert.deepEqual(forwardedRequest.body, payload);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("request larger than the bounded JSON limit gets a safe 413 response", async () => {
   const originalFetch = globalThis.fetch;
   let upstreamRequests = 0;

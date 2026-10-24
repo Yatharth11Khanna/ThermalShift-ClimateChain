@@ -185,6 +185,84 @@ export interface ThermalShiftReport {
   [key: string]: unknown;
  }
 
+export type ThermalShiftScenarioComparisonModelOutputClassification = typeof ThermalShiftScenarioComparisonModelOutputClassification[keyof typeof ThermalShiftScenarioComparisonModelOutputClassification];
+
+
+export const ThermalShiftScenarioComparisonModelOutputClassification = {
+  illustrative_model_estimate: 'illustrative_model_estimate',
+} as const;
+
+export type ThermalShiftScenarioComparisonInputProvenance = typeof ThermalShiftScenarioComparisonInputProvenance[keyof typeof ThermalShiftScenarioComparisonInputProvenance];
+
+
+export const ThermalShiftScenarioComparisonInputProvenance = {
+  synthetic_demo: 'synthetic_demo',
+  user_supplied_unverified: 'user_supplied_unverified',
+} as const;
+
+export type ThermalShiftScenarioComparisonObjectiveFunctions = {
+  baseline: string;
+  cost_optimized: string;
+  carbon_aware: string;
+};
+
+export type ThermalShiftScenarioComparisonConstraints = {
+  energy_budget_kwh: number;
+  energy_budget_rule: string;
+  min_temp_c: number;
+  max_temp_c: number;
+  max_cooling_kwh_per_hour: number;
+  temperature_model: string;
+};
+
+export interface ThermalShiftComparisonMetrics {
+  energy_kwh: number;
+  electricity_cost: number;
+  electricity_cost_unit: string;
+  modeled_emissions_kgco2: number;
+  peak_hourly_cooling_kwh: number;
+  peak_kw_proxy: number;
+}
+
+export interface ThermalShiftComparisonHourly {
+  /**
+     * @minimum 0
+     * @maximum 23
+     */
+  hour: number;
+  timestamp: string;
+  cooling_kwh: number;
+  modeled_temperature_c: number;
+  tariff_per_kwh: number;
+  grid_kgco2_per_kwh: number;
+}
+
+export interface ThermalShiftComparisonScenario {
+  feasible: boolean;
+  metrics: ThermalShiftComparisonMetrics | null;
+  hourly: ThermalShiftComparisonHourly[];
+  warnings: string[];
+  /** @nullable */
+  solver_message: string | null;
+}
+
+export type ThermalShiftScenarioComparisonScenarios = {
+  baseline: ThermalShiftComparisonScenario;
+  cost_optimized: ThermalShiftComparisonScenario;
+  carbon_aware: ThermalShiftComparisonScenario;
+};
+
+export interface ThermalShiftScenarioComparison {
+  scenario: string;
+  model_output_classification: ThermalShiftScenarioComparisonModelOutputClassification;
+  input_provenance: ThermalShiftScenarioComparisonInputProvenance;
+  time_series_metadata: ThermalShiftReportTimeSeriesMetadata;
+  objective_functions: ThermalShiftScenarioComparisonObjectiveFunctions;
+  constraints: ThermalShiftScenarioComparisonConstraints;
+  model_notice: string;
+  scenarios: ThermalShiftScenarioComparisonScenarios;
+}
+
 export type ThermalShiftHashInputReport = { [key: string]: unknown };
 
 export interface ThermalShiftHashInput {

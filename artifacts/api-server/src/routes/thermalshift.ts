@@ -35,6 +35,9 @@ router.get("/demo", (req, res) => forwardToThermalShift(req, res, "demo"));
 router.post("/optimize", (req, res) =>
   forwardToThermalShift(req, res, "optimize"),
 );
+router.post("/compare-scenarios", (req, res) =>
+  forwardToThermalShift(req, res, "compare-scenarios"),
+);
 router.post("/verify-hash", (req, res) =>
   forwardToThermalShift(req, res, "verify-hash"),
 );
